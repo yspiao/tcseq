@@ -1,23 +1,24 @@
 <!doctype html>
+<!-- TCSEQ Ultimate (Glitch + EQ) — MIT License. -->
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>TRANSIENT DETECTION // SEQUENCER</title>
+  <title>TCSEQ</title>
   <style>
     :root{
       --bg:#000000;
-      --panel:#020a16;
-      --panel2:#000c1f;
-      --fg:#c8c8c8;
-      --muted:#7f8792;
-      --blue:#0f52c8;
-      --blue2:#001f5a;
+      --panel:#00040b;
+      --panel2:#00020a;
+      --fg:#c9c9c9;
+      --muted:#8b9098;
+      --blue:#0a3a85;
+      --blue2:#001024;
       --warn:#b38b00;
       --bad:#b00020;
       --good:#00b36b;
-      --line:#223a66;
-      --invbg:#c8c8c8;
+      --line:#1c2636;
+      --invbg:#bdbdbd;
       --invfg:#000000;
       --shadow: 0 0 0 1px var(--line);
       --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -41,7 +42,7 @@
       justify-content:space-between;
       padding:8px 10px;
       background:var(--panel);
-      border:1px solid var(--line);
+      border:2px solid var(--line);
       box-shadow:var(--shadow);
     }
     .titlebar .left{
@@ -50,8 +51,8 @@
     }
     .badge{
       padding:2px 6px;
-      border:1px solid var(--line);
-      background:var(--blue2);
+      border:2px solid var(--line);
+      background:#00060f;
       color:var(--fg);
       letter-spacing:0.08em;
       font-size:12px;
@@ -70,7 +71,7 @@
     }
     .panel{
       background:var(--panel);
-      border:1px solid var(--line);
+      border:2px solid var(--line);
       box-shadow:var(--shadow);
       overflow:hidden;
       min-height:0;
@@ -100,15 +101,15 @@
       gap:10px;
       padding:8px 10px;
       background:var(--panel);
-      border:1px solid var(--line);
+      border:2px solid var(--line);
       box-shadow:var(--shadow);
       font-size:12px;
       color:var(--muted);
     }
     .btnRow{display:flex; flex-wrap:wrap; gap:8px;}
     .btn{
-      border:1px solid var(--line);
-      background:var(--blue2);
+      border:2px solid var(--line);
+      background:#00060f;
       color:var(--fg);
       padding:7px 10px;
       font-family:var(--font);
@@ -117,11 +118,11 @@
       cursor:pointer;
       user-select:none;
     }
-    .btn:hover{background:var(--blue);}
+    .btn:hover{background:#002a55;}
     .btn:active{transform:translateY(1px);}
     .btn[disabled]{opacity:0.45; cursor:not-allowed;}
     .btn.secondary{background:transparent;}
-    .btn.secondary:hover{background:var(--panel2);}
+    .btn.secondary:hover{background:#000b18;}
     .btn.danger{background:#22000a;}
     .btn.danger:hover{background:#3a0014;}
     .kv{
@@ -142,7 +143,7 @@
       width:100%;
       background:transparent;
       color:var(--fg);
-      border:1px solid var(--line);
+      border:2px solid var(--line);
       padding:6px 8px;
       font-family:var(--font);
       font-size:12px;
@@ -240,7 +241,7 @@
       display:inline-block;
       padding:0 6px;
       border:1px solid var(--line);
-      background:var(--panel2);
+      background:#00060f;
       color:var(--fg);
       margin-right:6px;
     }
@@ -350,10 +351,13 @@
   <div id="root" class="app">
     <div class="titlebar">
       <div class="left">
-        <span class="badge">TC//DOS</span>
-        <div class="title">TRANSIENT DETECTION // SEQUENCER (200 FILES)</div>
+        <span class="badge">TCSEQ</span>
+        <div class="title">TCSEQ</div>
       </div>
-      <div class="statusline" id="statusLine">Boot…</div>
+      <div style="display:flex; align-items:center; gap:8px;">
+  <button class="btn secondary" id="btnCompactTop">HIDE PANEL</button>
+  <div class="statusline" id="statusLine">Boot…</div>
+</div>
     </div>
 
     <div class="panel sidebar" id="sidebar">
@@ -437,7 +441,105 @@
 
         <div class="divider"></div>
 
-        <div class="btnRow">
+        
+        <div class="divider"></div>
+
+        <div class="panelHeader" style="border:1px solid var(--line); background:#00060f; margin-bottom:10px;">
+          <div>FX</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge" style="background:#00060f;">LIVE</span>
+          </div>
+        </div>
+
+        <div class="ctrlGrid">
+          <div class="ctrl">
+            <label for="fxGlitchOn">GLITCH</label>
+            <select id="fxGlitchOn">
+              <option value="0" selected>OFF</option>
+              <option value="1">ON</option>
+            </select>
+          </div>
+          <div class="ctrl">
+            <label for="fxGlitchMix">GLITCH MIX (%)</label>
+            <input id="fxGlitchMix" type="number" min="0" max="100" value="22"/>
+          </div>
+
+          <div class="ctrl">
+            <label for="fxGlitchRate">GLITCH RATE (%)</label>
+            <input id="fxGlitchRate" type="number" min="0" max="100" value="35"/>
+          </div>
+          <div class="ctrl">
+            <label for="fxGlitchStut">STUTTER (%)</label>
+            <input id="fxGlitchStut" type="number" min="0" max="100" value="20"/>
+          </div>
+
+          <div class="ctrl">
+            <label for="fxGlitchLen">STUTTER LEN (ms)</label>
+            <input id="fxGlitchLen" type="number" min="20" max="350" value="120"/>
+          </div>
+          <div class="ctrl">
+            <label for="fxGlitchCrush">BITCRUSH (%)</label>
+            <input id="fxGlitchCrush" type="number" min="0" max="100" value="25"/>
+          </div>
+
+          <div class="ctrl">
+            <label for="fxGlitchDown">DOWNSAMPLE (x)</label>
+            <input id="fxGlitchDown" type="number" min="1" max="24" value="6"/>
+          </div>
+          <div class="ctrl">
+            <label for="fxGlitchDrop">DROPOUT (%)</label>
+            <input id="fxGlitchDrop" type="number" min="0" max="100" value="8"/>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="panelHeader" style="border:1px solid var(--line); background:#00060f; margin-bottom:10px;">
+          <div>EQ</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge" style="background:#00060f;">3-BAND</span>
+          </div>
+        </div>
+
+        <div class="ctrlGrid">
+          <div class="ctrl">
+            <label for="fxEqOn">EQ</label>
+            <select id="fxEqOn">
+              <option value="0">OFF</option>
+              <option value="1" selected>ON</option>
+            </select>
+          </div>
+          <div class="ctrl">
+            <label for="fxEqMidFreq">MID FREQ (Hz)</label>
+            <select id="fxEqMidFreq">
+              <option value="400">400</option>
+              <option value="800">800</option>
+              <option value="1200" selected>1200</option>
+              <option value="2000">2000</option>
+            </select>
+          </div>
+
+          <div class="ctrl">
+            <label for="fxEqLow">LOW (dB)</label>
+            <input id="fxEqLow" type="number" min="-12" max="12" value="1"/>
+          </div>
+          <div class="ctrl">
+            <label for="fxEqMid">MID (dB)</label>
+            <input id="fxEqMid" type="number" min="-12" max="12" value="0"/>
+          </div>
+
+          <div class="ctrl">
+            <label for="fxEqHigh">HIGH (dB)</label>
+            <input id="fxEqHigh" type="number" min="-12" max="12" value="2"/>
+          </div>
+          <div class="ctrl">
+            <label for="fxOut">OUTPUT (dB)</label>
+            <input id="fxOut" type="number" min="-12" max="6" value="0"/>
+          </div>
+        </div>
+
+
+<div class="btnRow">
           <button class="btn" id="btnGen">GENERATE</button>
           <button class="btn" id="btnPlay">PLAY</button>
           <button class="btn danger" id="btnStop">STOP</button>
@@ -582,7 +684,137 @@
     };
   })();
 
-  // ====== Audio Engine ======
+  
+  // ====== Glitch Worklet (single-file, blob-loaded) ======
+  const GLITCH_WORKLET_CODE = `
+class GlitchProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [
+      { name: 'mix', defaultValue: 0.0, minValue: 0.0, maxValue: 1.0, automationRate: 'k-rate' },
+      { name: 'rate', defaultValue: 0.25, minValue: 0.0, maxValue: 1.0, automationRate: 'k-rate' },
+      { name: 'crush', defaultValue: 0.0, minValue: 0.0, maxValue: 1.0, automationRate: 'k-rate' },
+      { name: 'down', defaultValue: 1.0, minValue: 1.0, maxValue: 24.0, automationRate: 'k-rate' },
+      { name: 'drop', defaultValue: 0.0, minValue: 0.0, maxValue: 1.0, automationRate: 'k-rate' },
+      { name: 'stut', defaultValue: 0.10, minValue: 0.0, maxValue: 1.0, automationRate: 'k-rate' },
+      { name: 'stutLen', defaultValue: 0.12, minValue: 0.02, maxValue: 0.35, automationRate: 'k-rate' }
+    ];
+  }
+
+  constructor() {
+    super();
+    this._ringSize = Math.max(4096, Math.floor(sampleRate * 1.0)); // 1s ring
+    this._ringL = new Float32Array(this._ringSize);
+    this._ringR = new Float32Array(this._ringSize);
+    this._ringIdx = 0;
+
+    this._holdL = 0;
+    this._holdR = 0;
+    this._downCount = 0;
+
+    this._stutterRemaining = 0;
+    this._stutterLenSamples = Math.floor(sampleRate * 0.12);
+    this._stutterReadIdx = 0;
+  }
+
+  _wrap(i) {
+    const n = this._ringSize;
+    i %= n;
+    return i < 0 ? i + n : i;
+  }
+
+  process(inputs, outputs, params) {
+    const input = inputs[0];
+    const output = outputs[0];
+    if (!input || input.length === 0) return true;
+
+    const inL = input[0];
+    const inR = input[1] || input[0];
+    const outL = output[0];
+    const outR = output[1] || output[0];
+
+    const mix = (params.mix.length ? params.mix[0] : 0);
+    const rate = (params.rate.length ? params.rate[0] : 0);
+    const crush = (params.crush.length ? params.crush[0] : 0);
+    const down = Math.max(1, Math.round(params.down.length ? params.down[0] : 1));
+    const drop = (params.drop.length ? params.drop[0] : 0);
+    const stut = (params.stut.length ? params.stut[0] : 0);
+    const stutLen = (params.stutLen.length ? params.stutLen[0] : 0.12);
+
+    const n = outL.length;
+
+    // update stutter length (ms -> samples) each block
+    this._stutterLenSamples = Math.max(64, Math.min(this._ringSize - 1, Math.floor(sampleRate * stutLen)));
+
+    // stutter trigger at block boundary
+    if (this._stutterRemaining <= 0) {
+      const p = stut * rate * 0.30; // conservative
+      if (p > 0 && Math.random() < p) {
+        this._stutterRemaining = this._stutterLenSamples;
+        this._stutterReadIdx = this._wrap(this._ringIdx - this._stutterLenSamples);
+      }
+    }
+
+    // bit depth
+    const bit = Math.max(4, Math.min(16, Math.round(16 - crush * 12)));
+    const step = Math.pow(2, -(bit - 1)); // ~1/2^(bit-1)
+
+    for (let i = 0; i < n; i++) {
+      const xL = inL[i] || 0;
+      const xR = inR[i] || 0;
+
+      // write ring
+      this._ringL[this._ringIdx] = xL;
+      this._ringR[this._ringIdx] = xR;
+      this._ringIdx = (this._ringIdx + 1) % this._ringSize;
+
+      let yL = xL;
+      let yR = xR;
+
+      // stutter playback
+      if (this._stutterRemaining > 0) {
+        yL = this._ringL[this._stutterReadIdx];
+        yR = this._ringR[this._stutterReadIdx];
+        this._stutterReadIdx = (this._stutterReadIdx + 1) % this._ringSize;
+        this._stutterRemaining--;
+      }
+
+      // downsample/hold
+      if (down > 1) {
+        if ((this._downCount % down) === 0) {
+          this._holdL = yL;
+          this._holdR = yR;
+        }
+        yL = this._holdL;
+        yR = this._holdR;
+        this._downCount++;
+      }
+
+      // bitcrush quantize
+      if (crush > 0.001) {
+        yL = Math.round(yL / step) * step;
+        yR = Math.round(yR / step) * step;
+      }
+
+      // dropout
+      const dp = drop * rate * 0.02; // conservative
+      if (dp > 0 && Math.random() < dp) {
+        yL = 0;
+        yR = 0;
+      }
+
+      // mix
+      outL[i] = (1 - mix) * xL + mix * yL;
+      outR[i] = (1 - mix) * xR + mix * yR;
+    }
+
+    return true;
+  }
+}
+
+registerProcessor('glitch-processor', GlitchProcessor);
+  `;
+
+// ====== Audio Engine ======
   class AudioEngine{
     constructor(logger){
       this.logger = logger;
@@ -610,6 +842,37 @@
         this.master = this.ctx.createGain();
         this.master.gain.value = 0.85;
 
+        // --- EQ (3-band) ---
+        this.eqLow = this.ctx.createBiquadFilter();
+        this.eqLow.type = 'lowshelf';
+        this.eqLow.frequency.value = 180;
+        this.eqLow.gain.value = 0;
+
+        this.eqMid = this.ctx.createBiquadFilter();
+        this.eqMid.type = 'peaking';
+        this.eqMid.frequency.value = 1200;
+        this.eqMid.Q.value = 0.9;
+        this.eqMid.gain.value = 0;
+
+        this.eqHigh = this.ctx.createBiquadFilter();
+        this.eqHigh.type = 'highshelf';
+        this.eqHigh.frequency.value = 6500;
+        this.eqHigh.gain.value = 0;
+
+        // Output trim (post-EQ, pre-limiter)
+        this.outGain = this.ctx.createGain();
+        this.outGain.gain.value = 1.0;
+
+        // --- GLITCH (wet/dry) ---
+        this.dryGain = this.ctx.createGain();
+        this.wetGain = this.ctx.createGain();
+        this.dryGain.gain.value = 1.0;
+        this.wetGain.gain.value = 0.0;
+
+        this.glitchNode = null;
+        this._workletLoaded = false;
+
+
         // Gentle "limiter": compressor.
         const comp = this.ctx.createDynamicsCompressor();
         comp.threshold.value = -10;
@@ -618,9 +881,64 @@
         comp.attack.value = 0.003;
         comp.release.value = 0.12;
 
-        this.master.connect(comp).connect(this.ctx.destination);
+        // Build routing:
+        // sources -> master -> EQ -> split dry/wet -> (wet -> glitch) -> sum -> outGain -> limiter -> destination
+        this.master.connect(this.eqLow);
+        this.eqLow.connect(this.eqMid);
+        this.eqMid.connect(this.eqHigh);
+
+        // dry path
+        this.eqHigh.connect(this.dryGain);
+
+        // wet path (glitch worklet, created lazily in ensure())
+        this.eqHigh.connect(this.wetGain);
+
+        // sum
+        this.sumGain = this.ctx.createGain();
+        this.dryGain.connect(this.sumGain);
+
+        // placeholder: wetGain will connect to glitchNode when available; otherwise directly to sumGain
+        this.wetGain.connect(this.sumGain);
+
+        this.sumGain.connect(this.outGain).connect(comp).connect(this.ctx.destination);
         this.limiter = comp;
         this.logger.log(`AudioContext created. state=${this.ctx.state}, sr=${this.ctx.sampleRate}`);
+        // Load glitch worklet (blob) once per AudioContext
+        if (this.ctx.audioWorklet && !this._workletLoaded){
+          try{
+            const blob = new Blob([GLITCH_WORKLET_CODE], {type:'application/javascript'});
+            const url = URL.createObjectURL(blob);
+            await this.ctx.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+            this._workletLoaded = true;
+
+            // Create glitch node and rewire wet path:
+            // wetGain -> glitch -> sumGain (disconnect direct wet->sum first)
+            try{ this.wetGain.disconnect(); }catch{}
+            this.glitchNode = new AudioWorkletNode(this.ctx, 'glitch-processor', {
+              numberOfInputs: 1,
+              numberOfOutputs: 1,
+              outputChannelCount: [2],
+              parameterData: {
+                mix: 0.0,
+                rate: 0.25,
+                crush: 0.0,
+                down: 1.0,
+                drop: 0.0,
+                stut: 0.10,
+                stutLen: 0.12
+              }
+            });
+            this.wetGain.connect(this.glitchNode).connect(this.sumGain);
+            this.logger.log('Glitch worklet loaded.');
+          }catch(e){
+            this.logger.log(`Glitch worklet load failed: ${e?.message || e}`, 'WARN');
+            // fallback: wet path directly into sumGain
+            try{ this.wetGain.disconnect(); }catch{}
+            this.wetGain.connect(this.sumGain);
+          }
+        }
+
       }
       if (this.ctx.state !== 'running'){
         await this.ctx.resume();
@@ -663,6 +981,43 @@
       this.pattern = pattern;
       this.stepIndex = 0;
       this.nextNoteTime = 0;
+    }
+
+
+    setEQ({enabled, lowDb, midDb, highDb, midFreq, outDb}){
+      if (!this.ctx) return;
+      const en = !!enabled;
+      // Neutral when off
+      this.eqLow.gain.setTargetAtTime(en ? lowDb : 0, this.ctx.currentTime, 0.015);
+      this.eqMid.gain.setTargetAtTime(en ? midDb : 0, this.ctx.currentTime, 0.015);
+      this.eqHigh.gain.setTargetAtTime(en ? highDb : 0, this.ctx.currentTime, 0.015);
+      if (midFreq){
+        this.eqMid.frequency.setTargetAtTime(midFreq, this.ctx.currentTime, 0.02);
+      }
+      const outGain = Math.pow(10, (outDb || 0) / 20);
+      this.outGain.gain.setTargetAtTime(outGain, this.ctx.currentTime, 0.02);
+    }
+
+    setGlitch({enabled, mix, rate, stut, stutLenSec, crush, down, drop}){
+      if (!this.ctx) return;
+      const en = !!enabled;
+      const m = en ? mix : 0.0;
+
+      // Wet/dry
+      this.dryGain.gain.setTargetAtTime(1.0 - m, this.ctx.currentTime, 0.02);
+      this.wetGain.gain.setTargetAtTime(m, this.ctx.currentTime, 0.02);
+
+      // Worklet params (if loaded)
+      if (this.glitchNode && this.glitchNode.parameters){
+        const p = this.glitchNode.parameters;
+        if (p.get('mix')) p.get('mix').setValueAtTime(m, this.ctx.currentTime);
+        if (p.get('rate')) p.get('rate').setValueAtTime(rate, this.ctx.currentTime);
+        if (p.get('stut')) p.get('stut').setValueAtTime(stut, this.ctx.currentTime);
+        if (p.get('stutLen')) p.get('stutLen').setValueAtTime(stutLenSec, this.ctx.currentTime);
+        if (p.get('crush')) p.get('crush').setValueAtTime(crush, this.ctx.currentTime);
+        if (p.get('down')) p.get('down').setValueAtTime(down, this.ctx.currentTime);
+        if (p.get('drop')) p.get('drop').setValueAtTime(drop, this.ctx.currentTime);
+      }
     }
 
     // schedule: stepDuration = 60/BPM/4 (16th notes)
@@ -1311,6 +1666,7 @@ function updateLegend(){
     if (!sel || !sel.buffer) { toast.show('No decoded buffer to preview.'); return; }
     try{
       await engine.ensure();
+      applyFXFromUI();
       const t = engine.ctx.currentTime + 0.02;
       engine.trigger({
         buffer: sel.buffer,
@@ -1331,6 +1687,7 @@ function updateLegend(){
     if (state.files.length === 0) return;
     setMode('Decoding');
     await engine.ensure();
+    applyFXFromUI();
     updateKV();
     let idx = 0;
     let inFlight = 0;
@@ -1676,7 +2033,46 @@ function updateLegend(){
     toast.show('Exported log.');
   }
 
-  // ====== Load files ======
+  
+  // ====== FX apply (EQ + GLITCH) ======
+  function readFX(){
+    const glitchOn = ($('fxGlitchOn')?.value || '0') === '1';
+    const glitchMix = clamp((parseFloat($('fxGlitchMix')?.value) || 0) / 100, 0, 1);
+    const glitchRate = clamp((parseFloat($('fxGlitchRate')?.value) || 0) / 100, 0, 1);
+    const glitchStut = clamp((parseFloat($('fxGlitchStut')?.value) || 0) / 100, 0, 1);
+    const glitchLenMs = clamp((parseFloat($('fxGlitchLen')?.value) || 120), 20, 350);
+    const glitchLenSec = glitchLenMs / 1000;
+    const glitchCrush = clamp((parseFloat($('fxGlitchCrush')?.value) || 0) / 100, 0, 1);
+    const glitchDown = clamp(parseInt($('fxGlitchDown')?.value || '1', 10) || 1, 1, 24);
+    const glitchDrop = clamp((parseFloat($('fxGlitchDrop')?.value) || 0) / 100, 0, 1);
+
+    const eqOn = ($('fxEqOn')?.value || '0') === '1';
+    const midFreq = clamp(parseFloat($('fxEqMidFreq')?.value || '1200'), 200, 6000);
+    const lowDb = clamp(parseFloat($('fxEqLow')?.value || '0'), -12, 12);
+    const midDb = clamp(parseFloat($('fxEqMid')?.value || '0'), -12, 12);
+    const highDb = clamp(parseFloat($('fxEqHigh')?.value || '0'), -12, 12);
+    const outDb = clamp(parseFloat($('fxOut')?.value || '0'), -12, 6);
+
+    return {
+      glitch: { enabled: glitchOn, mix: glitchMix, rate: glitchRate, stut: glitchStut, stutLenSec: glitchLenSec, crush: glitchCrush, down: glitchDown, drop: glitchDrop },
+      eq: { enabled: eqOn, lowDb, midDb, highDb, midFreq, outDb }
+    };
+  }
+
+  function applyFXFromUI(){
+    try{
+      const fx = readFX();
+      if (engine && engine.ctx){
+        engine.setEQ(fx.eq);
+        engine.setGlitch(fx.glitch);
+      }
+    }catch(err){
+      logger.log(`FX apply failed: ${err?.message || err}`, 'WARN');
+    }
+  }
+
+
+// ====== Load files ======
   function clearAll(){
     stop();
     state.files = [];
@@ -1816,7 +2212,21 @@ Editing
     $('debugBox').classList.toggle('hidden');
   });
 
-  $('btnPanic').addEventListener('click', async () => {
+  
+  // FX controls: live update (also works while playing)
+  const fxIds = [
+    'fxGlitchOn','fxGlitchMix','fxGlitchRate','fxGlitchStut','fxGlitchLen','fxGlitchCrush','fxGlitchDown','fxGlitchDrop',
+    'fxEqOn','fxEqLow','fxEqMid','fxEqHigh','fxEqMidFreq','fxOut'
+  ];
+  fxIds.forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener('input', applyFXFromUI);
+    el.addEventListener('change', applyFXFromUI);
+  });
+
+
+$('btnPanic').addEventListener('click', async () => {
     await engine.panic();
     updateKV();
     toast.show('Audio engine reset.');
@@ -1841,12 +2251,24 @@ Editing
   }
 
 // Compact mode (hide sidebar)
-  $('btnCompact').addEventListener('click', () => {
-    document.body.classList.toggle('compact');
-    $('btnCompact').textContent = document.body.classList.contains('compact') ? 'SHOW PANEL' : 'HIDE PANEL';
-  });
+  
 
-  // Drag & drop
+  
+  function setCompact(isCompact){
+    document.body.classList.toggle('compact', !!isCompact);
+    const txt = document.body.classList.contains('compact') ? 'SHOW PANEL' : 'HIDE PANEL';
+    const b1 = $('btnCompact');
+    const b2 = $('btnCompactTop');
+    if (b1) b1.textContent = txt;
+    if (b2) b2.textContent = txt;
+  }
+
+  function toggleCompact(){
+    setCompact(!document.body.classList.contains('compact'));
+  }
+
+
+// Drag & drop
   const dz = $('dropzone');
   dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('drag'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
@@ -1879,6 +2301,7 @@ Editing
     updateLegend();
     renderFileList();
     updateKV();
+    setCompact(document.body.classList.contains('compact'));
     buildGrid();
     renderInspector();
 
