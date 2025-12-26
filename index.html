@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>TRANSIENT CLASSIFIER // DOS SEQUENCER</title>
+  <title>TRANSIENT DETECTION // SEQUENCER</title>
   <style>
     :root{
       --bg:#000000;
-      --panel:#050a14;
-      --panel2:#000814;
+      --panel:#020a16;
+      --panel2:#000c1f;
       --fg:#c8c8c8;
       --muted:#7f8792;
-      --blue:#0a2e6f;
-      --blue2:#001b44;
+      --blue:#0f52c8;
+      --blue2:#001f5a;
       --warn:#b38b00;
       --bad:#b00020;
       --good:#00b36b;
-      --line:#1a2a44;
+      --line:#223a66;
       --invbg:#c8c8c8;
       --invfg:#000000;
       --shadow: 0 0 0 1px var(--line);
@@ -325,14 +325,33 @@
     .compact .app{grid-template-columns: 1fr;}
     .compact .sidebar{display:none;}
     .compact .main{grid-column:1;}
-  </style>
+  
+    /* Mobile / narrow screens: keep sequencer visible */
+    @media (max-width: 900px){
+      .app{
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr auto;
+        gap:8px;
+        padding:8px;
+      }
+      .sidebar{grid-row:2; grid-column:1;}
+      .main{grid-row:3; grid-column:1;}
+      .titlebar{position:sticky; top:0; z-index:5;}
+      .seqGrid{grid-template-columns: 78px repeat(16, 16px);}
+      .stepHeader{grid-template-columns: 78px repeat(16, 16px);}
+      .rowLabel{font-size:11px;}
+      .panelHeader{gap:8px; flex-wrap:wrap;}
+      .btn{padding:7px 9px;}
+    }
+
+</style>
 </head>
 <body>
   <div id="root" class="app">
     <div class="titlebar">
       <div class="left">
         <span class="badge">TC//DOS</span>
-        <div class="title">TRANSIENT CLASSIFIER // DOS SEQUENCER (200 FILES)</div>
+        <div class="title">TRANSIENT DETECTION // SEQUENCER (200 FILES)</div>
       </div>
       <div class="statusline" id="statusLine">Boot…</div>
     </div>
@@ -442,7 +461,11 @@
     <div class="panel main">
       <div class="panelHeader">
         <div>SEQUENCER</div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <select id="viewBar" style="width:140px;">
+            <option value="follow">VIEW: FOLLOW</option>
+            <option value="1">VIEW: BAR 1</option>
+          </select>
           <button class="btn secondary" id="btnSeed">SEED: AUTO</button>
           <button class="btn secondary" id="btnReset">RESET GRID</button>
         </div>
@@ -643,10 +666,9 @@
     }
 
     // schedule: stepDuration = 60/BPM/4 (16th notes)
-    start(getEventAtStep, bpm, swingPercent){
+    start(getEventAtStep, getBpm, getSwingPercent){
       if (!this.pattern) throw new Error('No pattern set.');
       if (this.isRunning) return;
-      const swing = clamp(swingPercent/100, 0, 0.75);
       const stepsPerBar = 16;
       const totalSteps = this.pattern.bars * stepsPerBar;
 
@@ -656,7 +678,7 @@
       this.nextNoteTime = ctx.currentTime + 0.05;
       this.stepIndex = 0;
 
-      const stepDur = () => (60 / bpm) / 4;
+      const stepDur = () => (60 / clamp(getBpm(), 40, 260)) / 4;
 
       const scheduleStep = (step, time) => {
         const evt = getEventAtStep(step);
@@ -678,6 +700,7 @@
           // swing: delay odd steps
           const odd = (s % 2) === 1;
           const base = stepDur();
+          const swing = clamp(getSwingPercent()/100, 0, 0.75);
           const swingDelay = odd ? base * swing : 0;
           this.nextNoteTime += base + swingDelay;
           this.stepIndex++;
@@ -969,6 +992,8 @@
     files: [],          // {file, id, status, buffer?, features?, type?}
     selectedFileId: null,
     cursor: {row:0, step:0},
+    viewBar: 'follow', // 'follow' or '1'..'N'
+    playheadStep: 0,
     glyphSet: 'ascii',
     seed: null,         // number or null for auto
     pattern: makeEmptyPattern(2),
@@ -981,7 +1006,28 @@
     dots:  {empty:'·', ghost:'∘', hit:'•', accent:'◆'},
   };
 
-  function updateLegend(){
+  
+  function updateViewBarOptions(){
+    const sel = $('viewBar');
+    if (!sel) return;
+    const current = String(state.viewBar);
+    sel.innerHTML = '';
+    const optFollow = document.createElement('option');
+    optFollow.value = 'follow';
+    optFollow.textContent = 'VIEW: FOLLOW';
+    sel.appendChild(optFollow);
+    for (let i=1;i<=state.pattern.bars;i++){
+      const o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = `VIEW: BAR ${i}`;
+      sel.appendChild(o);
+    }
+    const values = Array.from(sel.options).map(o=>o.value);
+    state.viewBar = values.includes(current) ? current : 'follow';
+    sel.value = String(state.viewBar);
+  }
+
+function updateLegend(){
     const g = glyphs[state.glyphSet] || glyphs.ascii;
     $('legendEmpty').textContent = g.empty;
     $('legendGhost').textContent = g.ghost;
@@ -1032,9 +1078,15 @@
     const g = glyphs[state.glyphSet] || glyphs.ascii;
 
     const total = state.pattern.bars * 16;
-    // narrow UI: show only 16 steps; bars selectable in generator but displayed as current "page" (bar) based on cursor.step.
-    // We'll display the bar that contains cursor.step.
-    const barIndex = Math.floor(state.cursor.step / 16);
+    // Narrow UI: show 16 steps at a time, with a VIEW bar selector.
+    // VIEW: FOLLOW = show bar containing playhead while playing, otherwise bar containing cursor.
+    let barIndex;
+    if (state.viewBar === 'follow'){
+      barIndex = engine.isRunning ? Math.floor(state.playheadStep / 16) : Math.floor(state.cursor.step / 16);
+    } else {
+      const vb = parseInt(state.viewBar, 10);
+      barIndex = isFinite(vb) ? clamp(vb-1, 0, state.pattern.bars-1) : 0;
+    }
     const base = barIndex * 16;
 
     const title = `Pattern: ${state.pattern.bars} bar(s) // viewing BAR ${barIndex+1}`;
@@ -1488,6 +1540,7 @@
     // Update engine pattern
     engine.setPattern(state.pattern);
 
+    updateViewBarOptions();
     buildGrid();
     updateKV();
 
@@ -1502,6 +1555,7 @@
     state.pattern = makeEmptyPattern(bars);
     engine.setPattern(state.pattern);
     state.cursor = {row:0, step:0};
+    updateViewBarOptions();
     buildGrid();
     logger.log('Grid reset.');
     toast.show('Grid reset.');
@@ -1513,18 +1567,27 @@
       await engine.ensure();
       engine.setPattern(state.pattern);
 
-      const bpm = clamp(parseFloat($('tempo').value) || 120, 40, 260);
-      const swing = clamp(parseFloat($('swing').value) || 0, 0, 75);
-
       const getter = buildEventGetter();
+
+      const getBpm = () => clamp(parseFloat($('tempo').value) || 120, 40, 260);
+      const getSwing = () => clamp(parseFloat($('swing').value) || 0, 0, 75);
 
       engine.onStep = (s) => {
         // blink cursor on current step position (bar view follows cursor, so update step only)
+        state.playheadStep = s;
+        if (state.viewBar === 'follow'){
+          // rebuild grid only when bar changes
+          const showing = Math.floor((engine.isRunning ? state.playheadStep : state.cursor.step) / 16);
+          const want = Math.floor(s / 16);
+          if (engine.isRunning && want !== showing){
+            buildGrid();
+          }
+        }
         highlightPlaybackStep(s);
         $('clockTitle').textContent = `PLAYHEAD: step ${(s%16)+1} / 16  (bar ${Math.floor(s/16)+1} / ${state.pattern.bars})`;
       };
 
-      engine.start(getter, bpm, swing);
+      engine.start(getter, getBpm, getSwing);
       setMode('Playing');
       toast.show('PLAY.');
     }catch(err){
@@ -1544,8 +1607,14 @@
   }
 
   function highlightPlaybackStep(globalStep){
-    // highlight the cell that corresponds to globalStep in the currently displayed bar;
-    const barIndex = Math.floor(state.cursor.step / 16);
+    // highlight the cell that corresponds to globalStep in the currently displayed bar
+    let barIndex;
+    if (state.viewBar === 'follow'){
+      barIndex = Math.floor((engine.isRunning ? state.playheadStep : state.cursor.step) / 16);
+    } else {
+      const vb = parseInt(state.viewBar, 10);
+      barIndex = isFinite(vb) ? clamp(vb-1, 0, state.pattern.bars-1) : 0;
+    }
     const base = barIndex * 16;
     if (globalStep < base || globalStep >= base + 16) return;
 
@@ -1756,11 +1825,22 @@ Editing
   $('glyphSet').addEventListener('change', () => {
     state.glyphSet = $('glyphSet').value;
     updateLegend();
+    updateViewBarOptions();
     buildGrid();
     logger.log(`Glyph set: ${state.glyphSet}`);
   });
 
-  // Compact mode (hide sidebar)
+  
+  const viewBarSel = $('viewBar');
+  if (viewBarSel){
+    viewBarSel.addEventListener('change', () => {
+      state.viewBar = viewBarSel.value;
+      buildGrid();
+      logger.log(`View bar: ${state.viewBar}`);
+    });
+  }
+
+// Compact mode (hide sidebar)
   $('btnCompact').addEventListener('click', () => {
     document.body.classList.toggle('compact');
     $('btnCompact').textContent = document.body.classList.contains('compact') ? 'SHOW PANEL' : 'HIDE PANEL';
