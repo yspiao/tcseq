@@ -8,91 +8,109 @@
   <style>
     :root{
       --bg:#000000;
-      --panel:#00040b;
-      --panel2:#00020a;
-      --fg:#c9c9c9;
-      --muted:#8b9098;
-      --blue:#0a3a85;
-      --blue2:#001024;
+      --panel:#050505;
+      --panel2:#0b0b0b;
+      --fg:#c7c7c7;
+      --muted:#8f8f8f;
+      --blue:#6f8fb6;
+      --blue2:#486491;
       --warn:#b38b00;
       --bad:#b00020;
       --good:#00b36b;
-      --line:#1c2636;
-      --invbg:#bdbdbd;
+      --line:#3a3a3a;
+      --invbg:#c7c7c7;
       --invfg:#000000;
       --shadow: 0 0 0 1px var(--line);
       --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     }
-    html,body{height:100%; margin:0; background:var(--bg); color:var(--fg); font-family:var(--font);}
+    html, body{
+      background:var(--bg);
+      color:var(--fg);
+      padding:10px;
+    }
     *{box-sizing:border-box;}
     a{color:#9db7ff; text-decoration:none;}
     a:hover{text-decoration:underline;}
     .app{
-      display:grid;
-      grid-template-columns: 360px 1fr;
-      grid-template-rows: auto 1fr auto;
-      height:100%;
-      gap:10px;
-      padding:10px;
+      position:relative;
+      display:block;
+      border:2px solid #1b1b1b;
+      background:#000000;
+      min-height:calc(100vh - 20px);
     }
     .titlebar{
-      grid-column:1 / -1;
       display:flex;
       align-items:center;
       justify-content:space-between;
-      padding:8px 10px;
-      background:var(--panel);
-      border:2px solid var(--line);
-      box-shadow:var(--shadow);
+      padding:4px 8px;
+      border-bottom:1px solid rgba(255,255,255,0.25);
+      background:var(--blue2);
+      color:#ffffff;
+      user-select:none;
+      gap:10px;
     }
     .titlebar .left{
       display:flex; gap:10px; align-items:center;
       min-width:0;
     }
     .badge{
-      padding:2px 6px;
-      border:2px solid var(--line);
-      background:#00060f;
-      color:var(--fg);
-      letter-spacing:0.08em;
+      border:1px solid rgba(255,255,255,0.55);
+      background:rgba(0,0,0,0.25);
+      padding:1px 6px;
       font-size:12px;
+      color:#ffffff;
     }
     .title{
-      font-size:13px;
-      letter-spacing:0.08em;
+      font-weight:700;
+      letter-spacing:0.6px;
+      color:#ffffff;
+    }
+    .statusline{
+      border:1px solid rgba(255,255,255,0.40);
+      padding:2px 8px;
+      background:rgba(0,0,0,0.20);
+      color:#ffffff;
+      font-size:12px;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-    }
-    .statusline{
-      font-size:12px;
-      color:var(--muted);
-      white-space:nowrap;
+      max-width:360px;
     }
     .panel{
+      border:1px solid var(--line);
       background:var(--panel);
-      border:2px solid var(--line);
-      box-shadow:var(--shadow);
+      padding:8px;
       overflow:hidden;
-      min-height:0;
     }
     .panelHeader{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      padding:8px 10px;
-      border-bottom:1px solid var(--line);
-      background:var(--panel2);
-      letter-spacing:0.08em;
-      font-size:12px;
+      padding:4px 6px;
+      border:1px solid var(--line);
+      background:#000000;
+      margin-bottom:6px;
+      font-weight:700;
+      letter-spacing:0.3px;
     }
     .panelBody{
       padding:10px;
       overflow:auto;
       max-height:100%;
     }
-    .sidebar{grid-row:2; grid-column:1;}
-    .main{grid-row:2; grid-column:2; display:flex; flex-direction:column; min-height:0;}
+    .sidebar{
+      position:fixed;
+      top:56px;
+      right:16px;
+      width:340px;
+      height:calc(100vh - 86px);
+      overflow:auto;
+      z-index:50;
+    }
+    .main{
+      max-width: 1040px;
+      margin: 10px auto;
+    }
     .footer{
       grid-column:1 / -1;
       display:flex;
@@ -102,28 +120,28 @@
       padding:8px 10px;
       background:var(--panel);
       border:2px solid var(--line);
-      box-shadow:var(--shadow);
+      box-shadow:none;
       font-size:12px;
       color:var(--muted);
     }
     .btnRow{display:flex; flex-wrap:wrap; gap:8px;}
     .btn{
-      border:2px solid var(--line);
-      background:#00060f;
+      border:1px solid #8a8a8a;
+      background:#000000;
       color:var(--fg);
-      padding:7px 10px;
-      font-family:var(--font);
-      font-size:12px;
-      letter-spacing:0.06em;
+      padding:4px 8px;
+      font-weight:700;
+      letter-spacing:0.3px;
       cursor:pointer;
       user-select:none;
+      font-size:12px;
     }
-    .btn:hover{background:#002a55;}
+    .btn:hover{background:var(--invbg); color:var(--invfg);}
     .btn:active{transform:translateY(1px);}
     .btn[disabled]{opacity:0.45; cursor:not-allowed;}
-    .btn.secondary{background:transparent;}
-    .btn.secondary:hover{background:#000b18;}
-    .btn.danger{background:#22000a;}
+    .btn.secondary{border:1px solid #5f5f5f; background:#000000; color:var(--fg);}
+    .btn.secondary:hover{background:var(--invbg); color:var(--invfg);}
+    .btn.danger{border-color:#c7c7c7; background:#000000; color:#ffffff;}
     .btn.danger:hover{background:#3a0014;}
     .kv{
       display:grid;
@@ -224,7 +242,7 @@
     .gridFrame{
       border:1px solid var(--line);
       background:#00040c;
-      box-shadow:var(--shadow);
+      box-shadow:none;
       padding:10px;
       min-height:0;
       overflow:auto;
@@ -275,7 +293,7 @@
     .cell.accent{background:#001b44;}
     .cell.cursor{
       outline:1px solid #9db7ff;
-      box-shadow: 0 0 0 1px #9db7ff inset;
+      box-shadow:none;
     }
     .cell.cursorBlink{
       background:var(--invbg);
@@ -305,7 +323,7 @@
       color:var(--fg);
       padding:10px;
       font-size:12px;
-      box-shadow:var(--shadow);
+      box-shadow:none;
       display:none;
       white-space:pre-wrap;
     }
@@ -329,12 +347,64 @@
   
     /* Mobile / narrow screens: keep sequencer visible */
     @media (max-width: 900px){
-      .app{
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto 1fr auto;
-        gap:8px;
-        padding:8px;
-      }
+      body{padding:8px;}
+      .titlebar{position:sticky; top:0; z-index:60;}
+      .topbarRight{flex-wrap:wrap; justify-content:flex-end;}
+      .statusline{max-width:none;}
+
+      /* Disable drawer behavior on mobile */
+      .sidebar{position:static; width:auto; height:auto; right:auto; top:auto; z-index:auto;}
+      body:not(.compact) .app{padding-right:0;}
+
+      /* Stack: sequencer first, controls panel below (when shown) */
+      .app{display:flex; flex-direction:column; gap:6px; padding:6px;}
+      .main{order:2; margin:0;}
+      .sidebar{order:3;}
+      .footer{order:4;}
+      .gridFrame{overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+      .seqGrid{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
+      .stepHeader{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
+    }
+
+      .titlebar{position:sticky; top:0; z-index:10; padding:4px 6px;}
+      .topbarRight{flex-wrap:wrap; justify-content:flex-end;}
+      .statusline{max-width:none;}
+      .sidebar{order:2;}
+      .main{order:3;}
+      .footer{order:4;}
+      .panelBody{max-height:none; overflow:visible;}
+      .gridFrame{overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+      .seqGrid{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
+      .stepHeader{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
+    }
+
+      .titlebar{position:sticky; top:0; z-index:10;}
+      .sidebar{order:2;}
+      .main{order:3;}
+      .footer{order:4;}
+      .panelBody{max-height:none; overflow:visible;}
+      .gridFrame{overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+      .seqGrid{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
+      .stepHeader{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
+    }
+
+      .titlebar{position:sticky; top:0; z-index:10;}
+      .sidebar{order:2;}
+      .main{order:3;}
+      .footer{order:4;}
+
+      /* Let the page scroll naturally */
+      .panelBody{max-height:none; overflow:visible;}
+      .gridFrame{overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+
+      /* Sequencer readable and scrollable */
+      .seqGrid{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
+      .stepHeader{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
+      .rowLabel{font-size:11px;}
+      .panelHeader{gap:8px; flex-wrap:wrap;}
+      .btn{padding:7px 9px;}
+    }
+
       .sidebar{grid-row:2; grid-column:1;}
       .main{grid-row:3; grid-column:1;}
       .titlebar{position:sticky; top:0; z-index:5;}
@@ -345,6 +415,32 @@
       .btn{padding:7px 9px;}
     }
 
+
+    .winbtns{display:flex; gap:6px; align-items:center; margin-right:10px;}
+    .winbtn{display:inline-block; width:18px; text-align:center; border:1px solid rgba(255,255,255,0.55); color:#fff; font-size:12px; line-height:16px; height:16px; background:rgba(0,0,0,0.18);}
+    .winbtn.close{border-color:rgba(255,255,255,0.75);}
+
+
+    /* Titlebar controls: always accessible even when panel is hidden */
+    .topbarRight{display:flex; flex-direction:row; align-items:center; gap:10px;}
+    .topbarBtns{display:flex; gap:6px; align-items:center; justify-content:flex-end; flex-wrap:wrap;}
+    .topbarBtns .btn{padding:5px 9px; font-size:12px;}
+    @media (max-width: 900px){
+      .topbarRight{align-items:stretch;}
+      .topbarBtns{justify-content:flex-start;}
+      .statusline{max-width:none;}
+    }
+
+
+    /* reserve space for drawer when panel is visible */
+    body:not(.compact) .app{padding-right:360px;}
+    body.compact .app{padding-right:0;}
+    
+body.compact .sidebar{display:none;}
+
+    /* hide duplicate transport buttons in sidebar (controls live in top-right) */
+    #btnGen, #btnPlay, #btnStop{display:none;}
+    
 </style>
 </head>
 <body>
@@ -354,11 +450,21 @@
         <span class="badge">TCSEQ</span>
         <div class="title">TCSEQ</div>
       </div>
-      <div style="display:flex; align-items:center; gap:8px;">
-  <button class="btn secondary" id="btnCompactTop">HIDE PANEL</button>
-  <div class="statusline" id="statusLine">Boot…</div>
-</div>
+      <div class="topbarRight">
+      <div class="topbarBtns">
+        <button class="btn secondary" id="btnCompactTop">HIDE PANEL</button>
+        <button class="btn secondary" id="btnHelpTop">HELP</button>
+        <button class="btn secondary" id="btnPickTop">FILES</button>
+        <button class="btn secondary" id="btnAnalyzeTop">ANALYZE</button>
+        <button class="btn" id="btnGenTop">GENERATE</button>
+        <button class="btn secondary" id="btnPlayTop">PLAY</button>
+        <button class="btn danger" id="btnStopTop">STOP</button>
+        <button class="btn secondary" id="btnDbgTop">DEBUG</button>
+        <button class="btn secondary" id="btnPanicTop">PANIC</button>
+      </div>
+      <div class="statusline" id="statusLine">Boot…</div>
     </div>
+</div>
 
     <div class="panel sidebar" id="sidebar">
       <div class="panelHeader">
@@ -429,6 +535,17 @@
               <option value="8">8</option>
             </select>
           </div>
+
+          <div class="ctrl">
+            <label for="groove">GROOVE</label>
+            <select id="groove">
+              <option value="straight" selected>STRAIGHT</option>
+              <option value="break">BREAKBEAT</option>
+              <option value="jungle">JUNGLE</option>
+              <option value="dnb">DNB</option>
+            </select>
+          </div>
+
           <div class="ctrl">
             <label for="glyphSet">GLYPHS</label>
             <select id="glyphSet">
@@ -538,6 +655,68 @@
           </div>
         </div>
 
+
+
+        <div class="divider"></div>
+
+        <div class="panelHeader" style="border:1px solid var(--line); background:#00060f; margin-bottom:10px;">
+          <div>BREAK FX</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge" style="background:#00060f;">AUTO</span>
+          </div>
+        </div>
+
+        <div class="ctrlGrid">
+          <div class="ctrl">
+            <label for="fxBreakMode">MODE</label>
+            <select id="fxBreakMode">
+              <option value="off" selected>OFF</option>
+              <option value="break">BREAKBEAT</option>
+              <option value="jungle">JUNGLE</option>
+              <option value="dnb">DNB</option>
+            </select>
+          </div>
+          <div class="ctrl">
+            <label for="fxBreakIntensity">INTENSITY (%)</label>
+            <input id="fxBreakIntensity" type="number" min="0" max="100" value="35"/>
+          </div>
+
+          <div class="ctrl">
+            <label for="fxRepeatDiv">REPEAT DIV</label>
+            <select id="fxRepeatDiv">
+              <option value="16" selected>1/16</option>
+              <option value="32">1/32</option>
+              <option value="8">1/8</option>
+            </select>
+          </div>
+          <div class="ctrl">
+            <label for="fxLPF">LPF CUTOFF (Hz)</label>
+            <input id="fxLPF" type="number" min="200" max="20000" value="12000"/>
+          </div>
+
+          <div class="ctrl">
+            <label for="fxDelayDiv">DELAY DIV</label>
+            <select id="fxDelayDiv">
+              <option value="off" selected>OFF</option>
+              <option value="16">1/16</option>
+              <option value="8">1/8</option>
+              <option value="4">1/4</option>
+            </select>
+          </div>
+          <div class="ctrl">
+            <label for="fxDelaySend">DELAY SEND (%)</label>
+            <input id="fxDelaySend" type="number" min="0" max="100" value="10"/>
+          </div>
+
+          <div class="ctrl">
+            <label for="fxDelayFb">DELAY FB (%)</label>
+            <input id="fxDelayFb" type="number" min="0" max="95" value="35"/>
+          </div>
+          <div class="ctrl">
+            <label for="fxDelayCut">DELAY CUT (Hz)</label>
+            <input id="fxDelayCut" type="number" min="200" max="20000" value="4200"/>
+          </div>
+        </div>
 
 <div class="btnRow">
           <button class="btn" id="btnGen">GENERATE</button>
@@ -900,7 +1079,40 @@ registerProcessor('glitch-processor', GlitchProcessor);
         // placeholder: wetGain will connect to glitchNode when available; otherwise directly to sumGain
         this.wetGain.connect(this.sumGain);
 
-        this.sumGain.connect(this.outGain).connect(comp).connect(this.ctx.destination);
+        // Post filter (for jungle/dnb sweeps)
+        this.postFilter = this.ctx.createBiquadFilter();
+        this.postFilter.type = 'lowpass';
+        this.postFilter.frequency.value = 18000;
+        this.postFilter.Q.value = 0.7;
+
+        // Tempo delay (send/return) + feedback filter
+        this.delaySend = this.ctx.createGain();
+        this.delaySend.gain.value = 0.0;
+        this.delay = this.ctx.createDelay(2.0);
+        this.delay.delayTime.value = 0.125;
+        this.delayFb = this.ctx.createGain();
+        this.delayFb.gain.value = 0.0;
+        this.delayCut = this.ctx.createBiquadFilter();
+        this.delayCut.type = 'lowpass';
+        this.delayCut.frequency.value = 5000;
+        this.delayCut.Q.value = 0.7;
+        this.delayReturn = this.ctx.createGain();
+        this.delayReturn.gain.value = 0.0;
+
+        // Wire delay loop
+        this.sumGain.connect(this.delaySend);
+        this.delaySend.connect(this.delay);
+        this.delay.connect(this.delayCut);
+        this.delayCut.connect(this.delayReturn);
+        this.delayReturn.connect(this.postFilter);
+        // feedback
+        this.delayCut.connect(this.delayFb);
+        this.delayFb.connect(this.delay);
+
+        // Main path
+        this.sumGain.connect(this.postFilter);
+        this.postFilter.connect(this.outGain).connect(comp).connect(this.ctx.destination);
+        
         this.limiter = comp;
         this.logger.log(`AudioContext created. state=${this.ctx.state}, sr=${this.ctx.sampleRate}`);
         // Load glitch worklet (blob) once per AudioContext
@@ -1019,6 +1231,29 @@ registerProcessor('glitch-processor', GlitchProcessor);
         if (p.get('drop')) p.get('drop').setValueAtTime(drop, this.ctx.currentTime);
       }
     }
+    setBreakFX({lpfHz, delayTimeSec, delaySend, delayFb, delayCutHz}){
+      if (!this.ctx) return;
+      if (this.postFilter){
+        this.postFilter.frequency.setTargetAtTime(clamp(lpfHz || 18000, 200, 20000), this.ctx.currentTime, 0.02);
+      }
+      if (this.delay){
+        this.delay.delayTime.setTargetAtTime(clamp(delayTimeSec || 0.125, 0.01, 1.5), this.ctx.currentTime, 0.02);
+      }
+      if (this.delaySend){
+        this.delaySend.gain.setTargetAtTime(clamp(delaySend || 0, 0, 1), this.ctx.currentTime, 0.03);
+      }
+      if (this.delayFb){
+        this.delayFb.gain.setTargetAtTime(clamp(delayFb || 0, 0, 0.95), this.ctx.currentTime, 0.03);
+      }
+      if (this.delayCut){
+        this.delayCut.frequency.setTargetAtTime(clamp(delayCutHz || 5000, 200, 20000), this.ctx.currentTime, 0.03);
+      }
+      if (this.delayReturn){
+        this.delayReturn.gain.setTargetAtTime(clamp((delaySend || 0) * 0.9, 0, 0.9), this.ctx.currentTime, 0.03);
+      }
+    }
+
+
 
     // schedule: stepDuration = 60/BPM/4 (16th notes)
     start(getEventAtStep, getBpm, getSwingPercent){
@@ -1256,7 +1491,7 @@ registerProcessor('glitch-processor', GlitchProcessor);
     return {bars, rows, stepsPerBar:16};
   }
 
-  function genPattern(pattern, knobs, rng){
+  function genPattern(pattern, knobs, rng, groove){
     const {complexity, variation} = knobs;
     const C = clamp(complexity/100, 0, 1);
     const V = clamp(variation/100, 0, 1);
@@ -1277,7 +1512,118 @@ registerProcessor('glitch-processor', GlitchProcessor);
     };
 
     // Anchors (stable motifs)
-    for (let b=0;b<bars;b++){
+    // Base layer by groove
+    if (!groove) groove = 'straight';
+
+    const writeBreakTemplate = (o) => {
+      // Amen-ish 1 bar template at 16th resolution, values are accent levels (1..3)
+      // KICK
+      put('KICK', o+0, 3);
+      if (rng() < 0.55) put('KICK', o+6, 2);
+      put('KICK', o+10, (rng() < 0.5 ? 2 : 3));
+      if (rng() < 0.65) put('KICK', o+14, 2);
+
+      // SNARE on 2&4, plus ghosts
+      put('SNARE', o+4, 3);
+      put('SNARE', o+12, 3);
+      if (rng() < 0.45) put('SNARE', o+11, 1);
+      if (rng() < 0.30) put('SNARE', o+15, 1);
+
+      // HAT: 16ths with accent on offbeats
+      for (let s=0;s<16;s++) {
+        if (rng() < (0.55 + 0.25*C)) put('HAT', o+s, ((s%2===1 && rng()<0.55) ? 2 : 1));
+      }
+
+      // PERC / FX
+      const hits = [3,7,9,13];
+      for (const p of hits) {
+        if (rng() < (0.18 + 0.22*C)) put('PERC', o+p, (rng()<0.35 ? 1 : 2));
+      }
+      if (rng() < (0.08 + 0.18*C)) put('FX', o+8, 1);
+    };
+
+    const writeJungleTemplate = (o) => {
+      // Jungle: dense hats + ghost snares + sync kicks
+      put('SNARE', o+4, 3);
+      put('SNARE', o+12, 3);
+      if (rng() < 0.65) put('SNARE', o+11, 1);
+      if (rng() < 0.55) put('SNARE', o+15, 1);
+
+      put('KICK', o+0, 3);
+      if (rng() < 0.70) put('KICK', o+9, 2);
+      if (rng() < 0.55) put('KICK', o+10, 2);
+      if (rng() < 0.45) put('KICK', o+14, 2);
+
+      // rolling hats
+      for (let s=0;s<16;s++) {
+        const base = 0.70 + 0.25*C;
+        if (rng() < base) {
+          let v = 1;
+          if (s%4===2 && rng()<0.60) v = 2;
+          if (s%8===7 && rng()<0.35) v = 3;
+          put('HAT', o+s, v);
+        }
+      }
+
+      // clap on some snares
+      if (rng() < 0.55) put('CLAP', o+12, 2);
+      if (rng() < 0.25) put('CLAP', o+4, 1);
+
+      // perc fills
+      const fills = [2,3,6,7,10,13,14,15];
+      for (const p of fills) {
+        if (rng() < (0.15 + 0.30*C)) put('PERC', o+p, (rng()<0.3 ? 1 : 2));
+      }
+      if (rng() < (0.10 + 0.20*C)) put('FX', o+15, 1);
+    };
+
+    const writeDnbTemplate = (o) => {
+      // DnB: punchy kick+snare, 16th hats, occasional rolls
+      put('KICK', o+0, 3);
+      if (rng() < 0.75) put('KICK', o+10, 2);
+      if (rng() < 0.40) put('KICK', o+14, 1);
+
+      put('SNARE', o+4, 3);
+      put('SNARE', o+12, 3);
+
+      // hats
+      for (let s=0;s<16;s++) {
+        if (rng() < (0.55 + 0.20*C)) {
+          let v = ((s%2===1 && rng()<0.45) ? 2 : 1);
+          put('HAT', o+s, v);
+        }
+      }
+
+      // bass impulses
+      if (rng() < (0.35 + 0.25*C)) put('BASS', o+0, 2);
+      if (rng() < (0.30 + 0.30*C)) put('BASS', o+8, 1);
+      if (rng() < (0.25 + 0.20*C)) put('BASS', o+12, 1);
+
+      // snare roll near end
+      if (rng() < (0.12 + 0.25*C)) {
+        put('SNARE', o+14, 1);
+        put('SNARE', o+15, 1);
+      }
+      if (rng() < (0.10 + 0.18*C)) put('FX', o+15, 1);
+    };
+
+    if (groove === 'break'){
+      for (let b=0;b<bars;b++){
+        const o = b*16;
+        writeBreakTemplate(o);
+      }
+    } else if (groove === 'jungle'){
+      for (let b=0;b<bars;b++){
+        const o = b*16;
+        writeJungleTemplate(o);
+      }
+    } else if (groove === 'dnb'){
+      for (let b=0;b<bars;b++){
+        const o = b*16;
+        writeDnbTemplate(o);
+      }
+    } else {
+for (let b=0;b<bars;b++){
       const o = b*16;
       // Kick: 1 and 3, plus occasional pickup
       put('KICK', o+0, 3);
@@ -1313,7 +1659,9 @@ registerProcessor('glitch-processor', GlitchProcessor);
       }
     }
 
-    // Variation layer (controlled randomness)
+    
+    }
+// Variation layer (controlled randomness)
     const varyRow = (bus, prob, accentProb) => {
       const r = pattern.rows.find(x => x.bus === bus || x.name === bus);
       if (!r) return;
@@ -1888,7 +2236,8 @@ function updateLegend(){
       complexity: clamp(parseInt($('complexity').value,10) || 0, 0, 100),
       variation: clamp(parseInt($('variation').value,10) || 0, 0, 100),
     };
-    genPattern(state.pattern, knobs, rng);
+    const groove = ($('groove')?.value || 'straight');
+    genPattern(state.pattern, knobs, rng, groove);
 
     // Keep cursor in range
     state.cursor.row = clamp(state.cursor.row, 0, state.pattern.rows.length-1);
@@ -1932,6 +2281,7 @@ function updateLegend(){
       engine.onStep = (s) => {
         // blink cursor on current step position (bar view follows cursor, so update step only)
         state.playheadStep = s;
+        applyAutoBreakFX(s);
         if (state.viewBar === 'follow'){
           // rebuild grid only when bar changes
           const showing = Math.floor((engine.isRunning ? state.playheadStep : state.cursor.step) / 16);
@@ -2053,13 +2403,116 @@ function updateLegend(){
     const highDb = clamp(parseFloat($('fxEqHigh')?.value || '0'), -12, 12);
     const outDb = clamp(parseFloat($('fxOut')?.value || '0'), -12, 6);
 
-    return {
+    
+    const breakMode = ($('fxBreakMode')?.value || 'off');
+    const breakIntensity = clamp((parseFloat($('fxBreakIntensity')?.value) || 0) / 100, 0, 1);
+    const repeatDiv = parseInt($('fxRepeatDiv')?.value || '16', 10);
+    const lpfHz = clamp(parseFloat($('fxLPF')?.value || '12000'), 200, 20000);
+
+    const delayDiv = $('fxDelayDiv')?.value || 'off';
+    const delaySend = clamp((parseFloat($('fxDelaySend')?.value) || 0) / 100, 0, 1);
+    const delayFb = clamp((parseFloat($('fxDelayFb')?.value) || 0) / 100, 0, 0.95);
+    const delayCutHz = clamp(parseFloat($('fxDelayCut')?.value || '4200'), 200, 20000);
+
+return {
+      breakfx: { breakMode, breakIntensity, repeatDiv, lpfHz, delayDiv, delaySend, delayFb, delayCutHz },
       glitch: { enabled: glitchOn, mix: glitchMix, rate: glitchRate, stut: glitchStut, stutLenSec: glitchLenSec, crush: glitchCrush, down: glitchDown, drop: glitchDrop },
       eq: { enabled: eqOn, lowDb, midDb, highDb, midFreq, outDb }
     };
   }
 
-  function applyFXFromUI(){
+  
+  function computeBreakNodeParams(b){
+    const bpm = clamp(parseFloat($('tempo')?.value) || 120, 40, 260);
+    const step = (60 / bpm) / 4; // 16th
+    let delayTimeSec = 0.125;
+    if (!b || b.delayDiv === 'off') delayTimeSec = 0.125;
+    else if (b.delayDiv === '16') delayTimeSec = step;
+    else if (b.delayDiv === '8') delayTimeSec = step * 2;
+    else if (b.delayDiv === '4') delayTimeSec = step * 4;
+
+    const send = (!b || b.delayDiv === 'off') ? 0 : b.delaySend;
+    const fb = (!b || b.delayDiv === 'off') ? 0 : b.delayFb;
+
+    return {
+      lpfHz: (b ? b.lpfHz : 18000),
+      delayTimeSec,
+      delaySend: send,
+      delayFb: fb,
+      delayCutHz: (b ? b.delayCutHz : 5000)
+    };
+  }
+
+  function applyAutoBreakFX(stepIndex){
+    try{
+      if (!engine || !engine.ctx) return;
+      const fx = readFX();
+      const b = fx.breakfx;
+
+      // baseline always
+      engine.setBreakFX(computeBreakNodeParams(b));
+
+      if (!b || b.breakMode === 'off' || b.breakIntensity <= 0.001) return;
+
+      const bpm = clamp(parseFloat($('tempo')?.value) || 120, 40, 260);
+      const stepDur = (60 / bpm) / 4;
+      const sub = clamp(b.repeatDiv || 16, 8, 32);
+      const repeatLen = (sub === 32) ? stepDur/2 : (sub === 8 ? stepDur*2 : stepDur);
+
+      const inBar = stepIndex % 16;
+      const endFill = (inBar >= 12);
+
+      const I = b.breakIntensity;
+
+      // dynamic glitch params (override while playing)
+      let mix, rate, stut, crush, down, drop;
+      if (b.breakMode === 'break'){
+        mix = clamp(0.10 + 0.40*I + (endFill ? 0.15 : 0), 0, 0.85);
+        stut = clamp(0.10 + 0.55*I + (endFill ? 0.25 : 0), 0, 0.95);
+        rate = clamp(0.25 + 0.65*I, 0, 1);
+        crush = clamp(0.05 + 0.35*I, 0, 0.8);
+        down = Math.round(clamp(1 + 10*I + (endFill ? 4 : 0), 1, 24));
+        drop = clamp(0.02 + 0.10*I, 0, 0.25);
+      } else if (b.breakMode === 'jungle'){
+        mix = clamp(0.15 + 0.55*I + (endFill ? 0.10 : 0), 0, 0.9);
+        stut = clamp(0.20 + 0.65*I + (endFill ? 0.25 : 0), 0, 0.98);
+        rate = clamp(0.35 + 0.60*I, 0, 1);
+        crush = clamp(0.08 + 0.28*I, 0, 0.7);
+        down = Math.round(clamp(2 + 8*I + (endFill ? 5 : 0), 1, 24));
+        drop = clamp(0.02 + 0.08*I, 0, 0.22);
+      } else { // dnb
+        mix = clamp(0.08 + 0.35*I + (endFill ? 0.08 : 0), 0, 0.8);
+        stut = clamp(0.08 + 0.35*I + (endFill ? 0.18 : 0), 0, 0.85);
+        rate = clamp(0.25 + 0.55*I, 0, 1);
+        crush = clamp(0.02 + 0.22*I, 0, 0.6);
+        down = Math.round(clamp(1 + 6*I + (endFill ? 3 : 0), 1, 18));
+        drop = clamp(0.01 + 0.05*I, 0, 0.18);
+      }
+
+      // filter sweep
+      let lpf = clamp(b.lpfHz, 200, 20000);
+      if (endFill){
+        lpf = clamp(lpf * (0.35 + 0.45*(1-I)), 250, 14000);
+      }
+      const wobble = 1 + 0.06*Math.sin((stepIndex/16)*Math.PI*2);
+      lpf = clamp(lpf * wobble, 200, 20000);
+
+      // delay send bias on offbeats
+      const base = computeBreakNodeParams(b);
+      let send = base.delaySend;
+      if (b.delayDiv !== 'off'){
+        const offbeat = (inBar % 4) === 2 || (inBar % 4) === 3;
+        send = clamp(send * (offbeat ? (0.6 + 0.8*I) : 0.35), 0, 0.9);
+      }
+
+      engine.setGlitch({enabled:true, mix, rate, stut, stutLenSec: repeatLen, crush, down, drop});
+      engine.setBreakFX({lpfHz:lpf, delayTimeSec: base.delayTimeSec, delaySend: send, delayFb: base.delayFb, delayCutHz: base.delayCutHz});
+    }catch(err){
+      logger.log(`AutoBreakFX error: ${err?.message || err}`, 'WARN');
+    }
+  }
+
+function applyFXFromUI(){
     try{
       const fx = readFX();
       if (engine && engine.ctx){
@@ -2207,6 +2660,43 @@ Editing
   $('btnReset').addEventListener('click', resetGrid);
 
   $('btnHelp').addEventListener('click', showHelp);
+  // Topbar duplicates (always accessible)
+  $('btnHelpTop')?.addEventListener('click', showHelp);
+  $('btnPickTop')?.addEventListener('click', pickFiles);
+  $('btnAnalyzeTop')?.addEventListener('click', analyzeAll);
+  $('btnGenTop')?.addEventListener('click', generate);
+  $('btnDbgTop')?.addEventListener('click', () => {
+    setCompact(false);
+    $('debugBox')?.classList.toggle('hidden');
+  });
+  $('btnPanicTop')?.addEventListener('click', async () => {
+    await engine.panic();
+    updateKV();
+    toast.show('Audio engine reset.');
+  });
+
+  $('btnPlayTop')?.addEventListener('click', play);
+  $('btnStopTop')?.addEventListener('click', stop);
+
+
+  // Panel toggle (always available)
+  const btnSide = $('btnCompact');
+  if (btnSide) btnSide.addEventListener('click', toggleCompact);
+  const btnTop = $('btnCompactTop');
+  if (btnTop) btnTop.addEventListener('click', toggleCompact);
+
+  // ESC: show panel (useful on mobile). Ctrl/⌘+P toggles.
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape'){
+      setCompact(false);
+    }
+    if ((e.key === 'p' || e.key === 'P') && (e.metaKey || e.ctrlKey)){
+      e.preventDefault();
+      toggleCompact();
+    }
+  });
+
+
 
   $('btnDbg').addEventListener('click', () => {
     $('debugBox').classList.toggle('hidden');
@@ -2216,7 +2706,9 @@ Editing
   // FX controls: live update (also works while playing)
   const fxIds = [
     'fxGlitchOn','fxGlitchMix','fxGlitchRate','fxGlitchStut','fxGlitchLen','fxGlitchCrush','fxGlitchDown','fxGlitchDrop',
-    'fxEqOn','fxEqLow','fxEqMid','fxEqHigh','fxEqMidFreq','fxOut'
+    'fxEqOn','fxEqLow','fxEqMid','fxEqHigh','fxEqMidFreq','fxOut',
+    'fxBreakMode','fxBreakIntensity','fxRepeatDiv','fxLPF','fxDelayDiv','fxDelaySend','fxDelayFb','fxDelayCut'
+  
   ];
   fxIds.forEach(id => {
     const el = $(id);
@@ -2256,6 +2748,7 @@ $('btnPanic').addEventListener('click', async () => {
   
   function setCompact(isCompact){
     document.body.classList.toggle('compact', !!isCompact);
+    try{ localStorage.setItem(window.innerWidth <= 900 ? 'tcseq_compact_m' : 'tcseq_compact_d', document.body.classList.contains('compact') ? '1' : '0'); }catch{}
     const txt = document.body.classList.contains('compact') ? 'SHOW PANEL' : 'HIDE PANEL';
     const b1 = $('btnCompact');
     const b2 = $('btnCompactTop');
@@ -2290,7 +2783,41 @@ $('btnPanic').addEventListener('click', async () => {
   }, 480);
 
   // Boot
-  (async () => {
+  
+  // Compact preference is stored separately for mobile/desktop (so mobile doesn't break desktop workflow)
+  const isNarrow = () => window.innerWidth <= 900;
+  const keyForCompact = () => (isNarrow() ? 'tcseq_compact_m' : 'tcseq_compact_d');
+  const ensureCompactDefault = () => {
+    try{
+      const k = keyForCompact();
+      if (localStorage.getItem(k) === null){
+        // default: mobile compact ON, desktop compact OFF
+        localStorage.setItem(k, isNarrow() ? '1' : '0');
+      }
+    }catch{}
+  };
+  const applyCompactPref = () => {
+    ensureCompactDefault();
+    try{
+      const v = localStorage.getItem(keyForCompact());
+      setCompact(v === '1');
+    }catch{
+      setCompact(isNarrow());
+    }
+  };
+
+  // Apply at startup and when crossing breakpoint
+  applyCompactPref();
+  let _prevNarrow = isNarrow();
+  window.addEventListener('resize', () => {
+    const now = isNarrow();
+    if (now !== _prevNarrow){
+      applyCompactPref();
+      _prevNarrow = now;
+    }
+  });
+
+(async () => {
     logger.log('Boot.');
     if (location.protocol === 'file:'){
       logger.log('WARNING: file:// detected. Use localhost to avoid silent failures.', 'WARN');
