@@ -647,6 +647,9 @@
     debug: {
       on:false,
       lines: []
+    },
+    visual: {
+      lastStep: -1
     }
   };
 
@@ -1202,6 +1205,567 @@
   const fighters = [];
   let geoRot = 0;
 
+  // ---------- Visual step triggers + arcade scene + smooth geometry morph ----------
+  const vis = {
+    pulse: 0,
+    energy: 0,
+    trig: (() => {
+      const o = {};
+      for (const c of CATS) o[c] = 0;
+      return o;
+    })()
+  };
+
+  function easeInOut(t){
+    return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+  }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  function approach(cur, target, maxDelta){
+    if (cur < target) return Math.min(target, cur + maxDelta);
+    return Math.max(target, cur - maxDelta);
+  }
+
+  const game = (() => {
+    const G = {
+      inited:false,
+      level:1,
+      score:0,
+      lives:3,
+      kills:0,
+      wave:0,
+      msg:"",
+      msgT:0,
+      shake:0,
+      flash:0,
+      scroll:0,
+      stars:[],
+      bullets:[],
+      enemies:[],
+      parts:[],
+      density:0.5,
+      lead:"PERC/FX",
+      // last LCD dims
+      lx:0, ly:0, lw:0, lh:0,
+      player:{ x:0, y:0, vy:0, targetY:0, cd:0, superCd:0 },
+
+      recalc(){
+        const dist = patternDistribution();
+        const total = Object.values(dist).reduce((a,b)=>a+b,0) || 1;
+        this.density = clamp(total/(ROWS*STEPS), 0, 1);
+        this.lead = Object.entries(dist).sort((a,b)=>b[1]-a[1])[0]?.[0] || "PERC/FX";
+      },
+
+      reset(){
+        this.inited=true;
+        this.level=1; this.score=0; this.lives=3; this.kills=0; this.wave=0;
+        this.msg=""; this.msgT=0; this.shake=0; this.flash=0; this.scroll=0;
+        this.stars=[]; this.bullets=[]; this.enemies=[]; this.parts=[];
+        this.player={ x:0, y:0, vy:0, targetY:0, cd:0, superCd:0 };
+        this.recalc();
+      },
+
+      levelUp(){
+        this.level = clamp(this.level+1, 1, 99);
+        this.wave++;
+        this.msg = "LEVEL " + this.level;
+        this.msgT = 1500;
+        this.flash = Math.max(this.flash, 0.6);
+      },
+
+      spawnEnemy(type="scout"){
+        const lx=this.lx, ly=this.ly, lw=this.lw, lh=this.lh;
+        const yMin = ly + 16, yMax = ly + lh - 20;
+        const y = clamp(yMin + Math.random()*(yMax-yMin), yMin, yMax);
+        const base = ({
+          scout:{hp:1, sp: 18, pts: 25, sz: 5},
+          brute:{hp:3, sp: 12, pts: 60, sz: 7},
+          glitch:{hp:2, sp: 14, pts: 50, sz: 6},
+          boss:{hp:14, sp: 7, pts: 400, sz: 12}
+        })[type] || {hp:1, sp: 16, pts: 25, sz: 5};
+
+        const vx = -(base.sp/60) * (1 + this.level*0.06) * (0.85+Math.random()*0.3);
+        this.enemies.push({x: lx+lw-10, y, vx, hp:base.hp, maxHp:base.hp, type, sz:base.sz, t:0});
+      },
+
+      fire(power=1, mode="shot"){
+        const p = this.player;
+        if (p.cd > 0) return;
+        const speed = (mode==="beam") ? 2.7 : 2.1;
+        const spread = (mode==="spread") ? 3 : 0;
+        const count = (mode==="spread") ? 3 : 1;
+        for (let i=0;i<count;i++){
+          const dy = spread ? (i-1)*spread : 0;
+          this.bullets.push({x:p.x+7, y:p.y+2+dy, vx:speed, pow:power, life:900});
+        }
+        p.cd = (mode==="beam") ? 80 : 110;
+        this.flash = Math.max(this.flash, 0.18 + 0.08*power);
+      },
+
+      bomb(){
+        const p = this.player;
+        if (p.superCd > 0) return;
+        p.superCd = 1250;
+        this.shake = Math.max(this.shake, 0.9);
+        this.flash = Math.max(this.flash, 0.9);
+        for (const e of this.enemies){
+          e.hp -= 2;
+        }
+        for (let i=0;i<18;i++){
+          this.parts.push({x:p.x+8, y:p.y+3, vx:(Math.random()-0.5)*1.6, vy:(Math.random()-0.5)*1.2, life:400+Math.random()*300});
+        }
+      },
+
+      tick(dt, lx, ly, lw, lh, amp){
+        if (!this.inited) this.reset();
+        this.lx=lx; this.ly=ly; this.lw=lw; this.lh=lh;
+
+        this.recalc();
+
+        // starfield init
+        if (this.stars.length < 34){
+          while (this.stars.length < 34){
+            this.stars.push({x: Math.random()*lw, y: Math.random()*lh, sp: 0.15 + Math.random()*0.45, tw: Math.random()*Math.PI*2});
+          }
+        }
+        this.scroll += dt * (0.02 + this.level*0.001);
+        for (const s of this.stars){
+          s.x -= dt*s.sp*(0.025 + this.level*0.002);
+          s.tw += dt*0.004;
+          if (s.x < 0) { s.x += lw; s.y = Math.random()*lh; s.sp = 0.15 + Math.random()*0.55; }
+        }
+
+        // player movement (auto + beat-reactive; not a simple bob)
+        const p = this.player;
+        if (p.x === 0){
+          p.x = lx + 12;
+          p.y = ly + Math.floor(lh*0.55);
+          p.targetY = p.y;
+        }
+        const t = now();
+        const wander = Math.sin((t + this.level*300)*0.0022) * (2 + 6*this.density);
+        const beatNudge = (amp>0.012 ? (amp*60) : 0);
+        p.targetY = ly + Math.floor(lh*0.55 + wander + Math.sin(t*0.0016)*4 + beatNudge);
+        p.targetY = clamp(p.targetY, ly+16, ly+lh-18);
+        p.vy += (p.targetY - p.y) * 0.008;
+        p.vy *= 0.82;
+        p.y += p.vy;
+
+        p.cd = Math.max(0, p.cd - dt);
+        p.superCd = Math.max(0, p.superCd - dt);
+
+        // wave-like spawn (progressive difficulty)
+        const spawnRate = (0.45 + this.level*0.06) * (0.25 + this.density*1.2); // enemies/sec
+        this._spawnAcc = (this._spawnAcc || 0) + dt * spawnRate / 1000;
+        while (this._spawnAcc > 1){
+          this._spawnAcc -= 1;
+          const roll = Math.random();
+          let type = "scout";
+          if (this.level >= 4 && roll < 0.18) type = "brute";
+          if (this.level >= 6 && roll < 0.10) type = "glitch";
+          if (this.level % 8 === 0 && this.kills>0 && (this.kills % 32 === 0)) type = "boss";
+          this.spawnEnemy(type);
+        }
+
+        // enemies
+        for (const e of this.enemies){
+          e.t += dt;
+          e.x += e.vx * dt;
+          if (e.type==="glitch"){
+            e.y += Math.sin((now()+e.t)*0.02)*0.15;
+            if (Math.random() < 0.02) this.parts.push({x:e.x, y:e.y, vx:(Math.random()-0.5)*1.2, vy:(Math.random()-0.5)*1.0, life:220});
+          }
+        }
+
+        // bullets
+        for (const b of this.bullets){
+          b.x += b.vx * dt;
+          b.life -= dt;
+        }
+
+        // collisions
+        const hit = (b,e) => (Math.abs(b.x - e.x) < (e.sz+2) && Math.abs(b.y - e.y) < (e.sz+2));
+        for (const b of this.bullets){
+          if (b.life <= 0) continue;
+          for (const e of this.enemies){
+            if (e.hp <= 0) continue;
+            if (hit(b,e)){
+              e.hp -= b.pow;
+              b.life = 0;
+              this.shake = Math.max(this.shake, 0.25 + 0.12*b.pow);
+              for (let i=0;i<6;i++){
+                this.parts.push({x:e.x, y:e.y, vx:(Math.random()-0.5)*1.2, vy:(Math.random()-0.5)*1.0, life:260+Math.random()*220});
+              }
+              if (e.hp <= 0){
+                this.kills++;
+                this.score += (e.type==="boss") ? 400 : (e.type==="brute" ? 60 : (e.type==="glitch" ? 50 : 25));
+                this.flash = Math.max(this.flash, 0.35);
+                const thresh = 10 + this.level*6;
+                if (this.kills % thresh === 0) this.levelUp();
+              }
+              break;
+            }
+          }
+        }
+
+        // enemy reaches left => damage
+        for (const e of this.enemies){
+          if (e.hp>0 && e.x < lx+10){
+            e.hp = 0;
+            this.lives--;
+            this.shake = Math.max(this.shake, 0.8);
+            this.flash = Math.max(this.flash, 0.6);
+            this.msg = "HIT!";
+            this.msgT = 700;
+            if (this.lives <= 0){
+              this.lives = 3;
+              this.level = 1;
+              this.kills = 0;
+              this.score = 0;
+              this.enemies = [];
+              this.bullets = [];
+              this.parts = [];
+              this.msg = "RESTART";
+              this.msgT = 1200;
+            }
+          }
+        }
+
+        // cleanup
+        this.enemies = this.enemies.filter(e => e.x > lx-40 && e.hp>0);
+        this.bullets = this.bullets.filter(b => b.life>0 && b.x < lx+lw+20);
+        for (const pt of this.parts){
+          pt.x += pt.vx * dt;
+          pt.y += pt.vy * dt;
+          pt.life -= dt;
+        }
+        this.parts = this.parts.filter(pt => pt.life > 0);
+
+        // decay FX
+        this.shake *= 0.9;
+        this.flash *= 0.86;
+        this.msgT = Math.max(0, this.msgT - dt);
+      },
+
+      onStep(evt){
+        const k = evt.cats["KICK"] || 0;
+        const b = evt.cats["BASS"] || 0;
+        const s = evt.cats["SNARE"] || 0;
+        const c = evt.cats["CLAP"] || 0;
+        const h = evt.cats["HAT"] || 0;
+        const p = evt.cats["PERC/FX"] || 0;
+
+        if (k || b){
+          const pow = (k===3||b===3) ? 3 : (k===2||b===2) ? 2 : 1;
+          const mode = (b===3) ? "beam" : "shot";
+          this.fire(pow, mode);
+        }
+        if (s || c){
+          const mode = (s===3||c===3) ? "spread" : "shot";
+          this.fire((s===3||c===3) ? 2 : 1, mode);
+          if (this.enemies.length < 8 + this.level*1.2){
+            const type = (this.level >= 6 && (s===3||c===3) && Math.random()<0.35) ? "glitch"
+                       : (this.level >= 4 && Math.random()<0.25) ? "brute"
+                       : "scout";
+            this.spawnEnemy(type);
+          }
+        }
+        if (p===3){
+          this.bomb();
+        } else if (p){
+          this.shake = Math.max(this.shake, 0.15 + 0.1*p);
+        }
+        if (h){
+          this.player.vy += (Math.random()<0.5?-1:1) * (0.18*h);
+        }
+      },
+
+      render(g, lx, ly, lw, lh){
+        const drawSpr = (x,y,rows,scale=1) => {
+          g.fillStyle = "#111417";
+          for (let r=0;r<rows.length;r++){
+            const row = rows[r];
+            for (let c=0;c<row.length;c++){
+              if (row[c] === "#"){
+                g.fillRect(x + c*scale, y + r*scale, scale, scale);
+              }
+            }
+          }
+        };
+
+        // screen shake in LCD coords
+        const sh = this.shake;
+        const ox = Math.round((Math.random()-0.5) * sh * 4);
+        const oy = Math.round((Math.random()-0.5) * sh * 3);
+
+        g.save();
+        g.translate(ox, oy);
+
+        if (this.flash > 0.02){
+          g.fillStyle = `rgba(255,255,255,${0.07*this.flash})`;
+          g.fillRect(lx, ly, lw, lh);
+        }
+
+        // stars (scrolling background)
+        g.fillStyle = "rgba(0,0,0,0.45)";
+        for (const s of this.stars){
+          const tw = 0.5 + 0.5*Math.sin(s.tw);
+          if (tw > 0.52) g.fillRect(lx + (s.x|0), ly + (s.y|0), 1, 1);
+        }
+
+        // subtle platform line
+        g.fillStyle = "rgba(0,0,0,0.18)";
+        g.fillRect(lx+8, ly+lh-14, lw-16, 1);
+
+        // player ship
+        const ship = [
+          "..#.....",
+          ".###....",
+          "#####...",
+          ".###....",
+          "..#.....",
+          "...#....",
+        ];
+        drawSpr(this.player.x|0, this.player.y|0, ship, 1);
+
+        // bullets
+        g.fillStyle = "#111417";
+        for (const b of this.bullets){
+          const x = b.x|0, y = b.y|0;
+          g.fillRect(x, y, 2, 1);
+          if (b.pow >= 2) g.fillRect(x, y-1, 1, 3);
+        }
+
+        // aliens
+        const alienA = [
+          ".###.",
+          "#####",
+          "#.#.#",
+          "#####",
+          ".#.#.",
+        ];
+        const alienB = [
+          ".####.",
+          "######",
+          "##..##",
+          "######",
+          ".#..#.",
+          "..##..",
+        ];
+        const alienG = [
+          ".#.#.",
+          "#####",
+          "#...#",
+          "#####",
+          ".###.",
+        ];
+        const boss = [
+          "..#####..",
+          ".#######.",
+          "###.#.###",
+          "#########",
+          "##.###.##",
+          ".##...##.",
+        ];
+
+        for (const e of this.enemies){
+          const x = (e.x|0), y = (e.y|0);
+          let spr = alienA;
+          if (e.type==="brute") spr = alienB;
+          if (e.type==="glitch") spr = alienG;
+          if (e.type==="boss") spr = boss;
+          drawSpr(x, y, spr, 1);
+          if (e.maxHp > 1){
+            g.fillStyle = "rgba(0,0,0,0.35)";
+            g.fillRect(x, y-3, spr[0].length, 1);
+            const fillW = Math.round((spr[0].length) * clamp(e.hp/e.maxHp,0,1));
+            g.fillStyle = "#111417";
+            g.fillRect(x, y-3, fillW, 1);
+          }
+        }
+
+        // particles
+        g.fillStyle = "rgba(0,0,0,0.35)";
+        for (const pt of this.parts){
+          g.fillRect(pt.x|0, pt.y|0, 1, 1);
+        }
+
+        // tiny HUD (pseudo-text)
+        const textTiny = (x,y,str) => {
+          g.fillStyle = "rgba(0,0,0,0.55)";
+          for (let i=0;i<str.length;i++){
+            const ch = str.charCodeAt(i);
+            const bits = (ch ^ (ch>>3)) & 0xff;
+            for (let b=0;b<6;b++){
+              if (bits & (1<<b)) g.fillRect(x + i*4 + (b%3), y + (b>2?1:0), 1, 1);
+            }
+          }
+        };
+        textTiny(lx+10, ly+6, `LV${String(this.level).padStart(2,"0")}`);
+        textTiny(lx+34, ly+6, `HP${this.lives}`);
+        textTiny(lx+10, ly+lh-10, `SC${String(this.score).padStart(4,"0")}`);
+
+        if (this.msgT > 0 && this.msg){
+          g.fillStyle = "rgba(0,0,0,0.25)";
+          g.fillRect(lx+Math.floor(lw/2)-22, ly+Math.floor(lh/2)-3, 44, 7);
+          textTiny(lx+Math.floor(lw/2)-18, ly+Math.floor(lh/2)-1, this.msg);
+        }
+
+        g.restore();
+      }
+    };
+    return G;
+  })();
+
+  const geoMorph = (() => {
+    return {
+      inited:false,
+      nextVariant: 0,
+      t: 1,
+      from: [],
+      target: [],
+      points: [],
+      visibleCount: 90,
+      targetCount: 90,
+      energy: 0,
+      requestUpdate: true,
+      init(){
+        this.inited=true;
+        this.nextVariant=0;
+        this.t=1;
+        this.from=[];
+        this.target=[];
+        this.points=[];
+        this.visibleCount=90;
+        this.targetCount=90;
+        this.energy=0;
+        this.requestUpdate=true;
+      }
+    };
+  })();
+
+  function geoShapePoint(variant, u, tt){
+    const a = u * Math.PI * 2;
+    if (variant === 0){ // cube wire
+      const e = Math.floor(u*12);
+      const f = (u*12) - e;
+      const s = 1.2;
+      const v = [
+        [-s,-s,-s],[ s,-s,-s],[ s, s,-s],[-s, s,-s],
+        [-s,-s, s],[ s,-s, s],[ s, s, s],[-s, s, s],
+      ];
+      const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+      const [i,j] = edges[e%edges.length];
+      const p=v[i], q=v[j];
+      return [lerp(p[0],q[0],f), lerp(p[1],q[1],f), lerp(p[2],q[2],f)];
+    }
+    if (variant === 1){ // tetra edges
+      const v = [[0,1.3,0],[-1.2,-1.0,-0.9],[1.2,-1.0,-0.9],[0,-1.0,1.1]];
+      const edges = [[0,1],[0,2],[0,3],[1,2],[2,3],[3,1]];
+      const e = Math.floor(u*edges.length);
+      const f = (u*edges.length)-e;
+      const [i,j]=edges[e];
+      const p=v[i], q=v[j];
+      return [lerp(p[0],q[0],f), lerp(p[1],q[1],f), lerp(p[2],q[2],f)];
+    }
+    if (variant === 2){ // sphere
+      const th = a;
+      const ph = Math.acos(lerp(-1,1,(u*0.97 + 0.015)%1));
+      const r = 1.25;
+      return [r*Math.sin(ph)*Math.cos(th), r*Math.cos(ph), r*Math.sin(ph)*Math.sin(th)];
+    }
+    if (variant === 3){ // torus
+      const R=1.15, r=0.45;
+      const b = a*1.3 + tt*0.4;
+      const x = (R + r*Math.cos(b))*Math.cos(a);
+      const y = r*Math.sin(b);
+      const z = (R + r*Math.cos(b))*Math.sin(a);
+      return [x, y, z];
+    }
+    if (variant === 4){ // cone spiral
+      const z = lerp(-1.2, 1.2, u);
+      const rr = lerp(1.25, 0.15, u);
+      const ang = a*2.2 + tt*0.8;
+      return [Math.cos(ang)*rr, Math.sin(ang)*rr*0.7, z];
+    }
+    if (variant === 5){ // prism loop
+      const k = a;
+      const x = Math.sign(Math.cos(k)) * (0.9 + 0.3*Math.cos(3*k));
+      const y = Math.sign(Math.sin(k)) * (0.7 + 0.2*Math.sin(2*k));
+      const z = Math.sin(k*2 + tt*0.6)*0.9;
+      return [x, y, z];
+    }
+    if (variant === 6){ // triple ring
+      const ring = Math.floor(u*3);
+      const uu = (u*3)-ring;
+      const aa = uu*Math.PI*2;
+      const R = 1.2;
+      if (ring===0) return [Math.cos(aa)*R, Math.sin(aa)*0.8, 0];
+      if (ring===1) return [Math.cos(aa)*R, 0, Math.sin(aa)*0.8];
+      return [0, Math.cos(aa)*R, Math.sin(aa)*0.8];
+    }
+    if (variant === 7){ // double helix
+      const z = lerp(-1.2, 1.2, u);
+      const ang = a*2.4 + tt*1.1;
+      const x = Math.cos(ang)*1.0;
+      const y = Math.sin(ang)*0.7;
+      const off = (u<0.5?1:-1)*0.25;
+      return [x+off, y, z];
+    }
+    if (variant === 8){ // atom rings
+      const ring = Math.floor(u*3);
+      const uu = (u*3)-ring;
+      const aa = uu*Math.PI*2;
+      const R = 1.25;
+      if (ring===0) return [Math.cos(aa)*R, Math.sin(aa)*0.65, 0];
+      if (ring===1) return [Math.cos(aa)*R, 0, Math.sin(aa)*0.65];
+      return [0, Math.cos(aa)*R, Math.sin(aa)*0.65];
+    }
+    // trefoil knot
+    const x = (Math.sin(a) + 2*Math.sin(2*a)) * 0.6;
+    const y = (Math.cos(a) - 2*Math.cos(2*a)) * 0.35;
+    const z = (-Math.sin(3*a)) * 0.55;
+    return [x, y, z];
+  }
+
+  function geoBuildTarget(variant, count, tt){
+    const pts = new Array(count);
+    for (let i=0;i<count;i++){
+      const u = i / count;
+      const p = geoShapePoint(variant, u, tt);
+      const j = 0.06*Math.sin((i*17.13) + tt*1.7);
+      pts[i] = {x:p[0] + j, y:p[1] - j*0.7, z:p[2] + j*0.5, a:1};
+    }
+    return pts;
+  }
+
+  function onStep(step){
+    const cats = {};
+    for (const c of CATS) cats[c]=0;
+
+    let hits=0, acc=0;
+    for (let r=0;r<ROWS;r++){
+      const st = state.pattern[r][step];
+      if (st){
+        cats[CATS[r]] = Math.max(cats[CATS[r]], st);
+        hits++;
+        if (st===3) acc++;
+      }
+    }
+
+    // visual trigger envelope
+    vis.pulse = 1.0;
+    vis.energy = clamp(vis.energy + 0.15 + 0.12*acc, 0, 1.7);
+    for (const c of CATS){
+      vis.trig[c] = Math.max(vis.trig[c], cats[c]/3);
+    }
+
+    // drive arcade scene and geometry
+    game.onStep({step, cats, hits, acc});
+    geoMorph.energy = Math.max(geoMorph.energy, 0.25 + 0.15*acc + 0.08*hits);
+    if (acc) geoMorph.requestUpdate = true;
+  }
+
+
   function patternDistribution(){
     const dist = {};
     for (const c of CATS) dist[c]=0;
@@ -1272,92 +1836,51 @@
     return Math.sqrt(sum/arr.length);
   }
 
+  
   function drawFighters(dt){
     const g = offFightCtx;
     const w = offFight.width, h = offFight.height;
     g.clearRect(0,0,w,h);
 
-    // background
+    // ---------- Pocket-operator-ish LCD frame ----------
     g.fillStyle = "#050607";
     g.fillRect(0,0,w,h);
 
-    // arena line
-    g.fillStyle = "#1e2229";
-    g.fillRect(0, h-16, w, 1);
+    const lx = 6, ly = 9, lw = w-12, lh = h-18;
+
+    // bezel
+    g.fillStyle = "#0b0d10";
+    g.fillRect(lx-2, ly-2, lw+4, lh+4);
+
+    // LCD screen
+    g.fillStyle = "#cfd4d6";
+    g.fillRect(lx, ly, lw, lh);
+
+    // subtle dithering/noise (stable-ish)
+    const t = now();
+    g.fillStyle = "rgba(0,0,0,0.04)";
+    for (let i=0;i<90;i++){
+      const nx = lx + ((i*19 + Math.floor(t/50)) % lw);
+      const ny = ly + ((i*11 + Math.floor(t/70)) % lh);
+      g.fillRect(nx, ny, 1, 1);
+    }
+
+    // top "UI" ticks (PO-style decoration)
+    g.fillStyle = "rgba(0,0,0,0.25)";
+    for (let i=0;i<lw;i+=6){
+      g.fillRect(lx+i, ly+3, 2, 1);
+    }
 
     const amp = rmsFromAnalyser();
-    const flick = clamp(Math.floor(amp*40), 0, 6);
 
-    // subtle "scene" shifts based on leading category
-    const dist = patternDistribution();
-    const lead = Object.entries(dist).sort((a,b)=>b[1]-a[1])[0]?.[0] || "PERC/FX";
-    const sceneTone = (lead==="KICK"||lead==="BASS") ? "#0b111a" : (lead==="HAT") ? "#080c12" : "#0a0c10";
-    g.fillStyle = sceneTone;
-    g.fillRect(0,0,w,h);
+    // Run "arcade" scene inside LCD (level progression + aliens + combat)
+    game.tick(dt, lx, ly, lw, lh, amp);
+    game.render(g, lx, ly, lw, lh);
 
-    // fighters
-    for (let i=0;i<fighters.length;i++){
-      const f = fighters[i];
-      f.x += f.vx * f.speed * dt;
-      if (f.x < 4){ f.x=4; f.vx *= -1; }
-      if (f.x > w-8){ f.x=w-8; f.vx *= -1; }
-      f.dir = f.vx>=0 ? 1 : -1;
-
-      // interactions (simple "bump fight")
-      f.cool -= dt;
-      for (let j=i+1;j<fighters.length;j++){
-        const o = fighters[j];
-        const dx = o.x - f.x;
-        const dy = o.y - f.y;
-        const d2 = dx*dx + dy*dy;
-        if (d2 < 70){
-          // push apart
-          const push = 0.02*dt;
-          f.vx -= push*dx;
-          o.vx += push*dx;
-
-          if (f.cool <= 0 && Math.random() < 0.02 + amp*0.2){
-            f.hp = Math.max(0, f.hp-1);
-            o.hp = Math.max(0, o.hp-1);
-            f.cool = 20 + Math.random()*30;
-          }
-        }
-      }
-
-      // draw as pixel sprite
-      const sx = Math.round(f.x), sy = Math.round(f.y);
-      const sz = f.size;
-
-      // color by type (still monochrome-ish)
-      let col = "#223d5c";
-      if (f.type==="KICK") col="#1a2a3d";
-      else if (f.type==="SNARE") col="#2b3647";
-      else if (f.type==="HAT") col="#283043";
-      else if (f.type==="CLAP") col="#2d3c52";
-      else if (f.type==="BASS") col="#162437";
-      else col="#1e2b3a";
-
-      g.fillStyle = col;
-      g.fillRect(sx, sy, sz, sz);
-      // head
-      g.fillRect(sx + (f.dir>0?sz: -2), sy-3, 2, 2);
-      // feet
-      g.fillStyle = "#0f141c";
-      g.fillRect(sx, sy+sz, 2, 1);
-      g.fillRect(sx+sz-2, sy+sz, 2, 1);
-
-      // hp bar
-      const hpw = clamp(Math.round((f.hp/18)*12), 0, 12);
-      g.fillStyle = "#1e2229";
-      g.fillRect(sx-1, sy-7, 12, 2);
-      g.fillStyle = "#223d5c";
-      g.fillRect(sx-1, sy-7, hpw, 2);
-
-      // occasional flashes on snare/clap energy
-      if ((lead==="SNARE" || lead==="CLAP") && flick>3){
-        g.fillStyle = "rgba(255,255,255,0.05)";
-        g.fillRect(0,0,w,h);
-      }
+    // scanlines (very subtle)
+    g.fillStyle = "rgba(0,0,0,0.03)";
+    for (let y=ly; y<ly+lh; y+=3){
+      g.fillRect(lx, y, lw, 1);
     }
 
     // scale to main canvas with pixelated look
@@ -1366,6 +1889,8 @@
     ctxFight.drawImage(offFight, 0, 0, cvFight.width, cvFight.height);
   }
 
+
+  
   function drawGeo(dt){
     const g = offGeoCtx;
     const w = offGeo.width, h = offGeo.height;
@@ -1375,24 +1900,83 @@
     g.fillStyle = "#050607";
     g.fillRect(0,0,w,h);
 
+    if (!geoMorph.inited) geoMorph.init();
+
     const dist = patternDistribution();
+    const total = Object.values(dist).reduce((a,b)=>a+b,0);
+    const density = clamp(total/(ROWS*STEPS), 0, 1);
     const lead = Object.entries(dist).sort((a,b)=>b[1]-a[1])[0]?.[0] || "PERC/FX";
+    const leadIdx = Math.max(0, CATS.indexOf(lead));
     const amp = rmsFromAnalyser();
 
-    // choose shape by lead
-    const shape = (lead==="KICK"||lead==="BASS") ? "cube" :
-                  (lead==="HAT") ? "tetra" :
-                  (lead==="SNARE"||lead==="CLAP") ? "octa" : "ring";
+    // variant changes with smoothing; no hard switch
+    const tt = now()/1000;
+    const desiredVariant = (Math.floor(now()/1600) + leadIdx) % 10;
 
-    geoRot += dt*0.0015*(1 + amp*8);
+    // point count grows/shrinks smoothly with density + beat energy
+    const desiredCount = clamp(Math.round(70 + density*80 + geoMorph.energy*18), 55, 160);
 
-    // Simple 3D wireframes
-    function project(p){
-      const z = p[2] + 3.5;
-      const s = 60 / z;
-      return [w/2 + p[0]*s, h/2 + p[1]*s];
+    // start a new morph when variant changes or when target count drifts
+    const needNew =
+      geoMorph.requestUpdate ||
+      (geoMorph.target.length === 0) ||
+      (desiredVariant !== geoMorph.nextVariant) ||
+      (Math.abs(desiredCount - geoMorph.targetCount) > 10);
+
+    if (needNew){
+      geoMorph.requestUpdate = false;
+      geoMorph.t = 0;
+      geoMorph.from = geoMorph.points.length ? geoMorph.points.map(p => ({x:p.x,y:p.y,z:p.z,a:p.a})) : [];
+      geoMorph.nextVariant = desiredVariant;
+      geoMorph.targetCount = desiredCount;
+      geoMorph.target = geoBuildTarget(desiredVariant, desiredCount, tt);
+      if (!geoMorph.visibleCount) geoMorph.visibleCount = desiredCount;
     }
 
+    // morph progress
+    const speed = 700 / (1 + Math.min(1.2, geoMorph.energy)*0.9);
+    geoMorph.t = clamp(geoMorph.t + dt / speed, 0, 1);
+    const e = easeInOut(geoMorph.t);
+
+    // smoothly change visible point count so points "grow in"
+    geoMorph.visibleCount = approach(geoMorph.visibleCount, geoMorph.targetCount, dt*0.08);
+
+    const vc = Math.max(1, Math.floor(geoMorph.visibleCount));
+    const fromN = geoMorph.from.length || 1;
+    const tgtN = geoMorph.target.length || 1;
+
+    // update current points array
+    if (geoMorph.points.length < vc){
+      while (geoMorph.points.length < vc){
+        geoMorph.points.push({x:0,y:0,z:0,a:0});
+      }
+    } else if (geoMorph.points.length > vc){
+      geoMorph.points.length = vc;
+    }
+
+    for (let i=0;i<vc;i++){
+      const fp = geoMorph.from.length ? geoMorph.from[i % fromN] : {x:0,y:0,z:0,a:0};
+      const tp = geoMorph.target[i % tgtN] || {x:0,y:0,z:0,a:1};
+      const px = lerp(fp.x, tp.x, e);
+      const py = lerp(fp.y, tp.y, e);
+      const pz = lerp(fp.z, tp.z, e);
+      const pa = lerp(fp.a ?? 1, 1, e);
+      geoMorph.points[i].x = px;
+      geoMorph.points[i].y = py;
+      geoMorph.points[i].z = pz;
+      // fade-in/out (gives "points increasing" feel)
+      geoMorph.points[i].a = clamp(pa * (i < geoMorph.visibleCount ? 1 : 0), 0, 1);
+    }
+
+    // rotation + mild warp
+    geoRot += dt*0.0012*(1 + amp*7);
+    geoMorph.energy = Math.max(0, geoMorph.energy*0.92 - dt*0.00025);
+
+    function project(p){
+      const z = p[2] + 3.6;
+      const s = 62 / z;
+      return [w/2 + p[0]*s, h/2 + p[1]*s];
+    }
     function rotY(p, a){
       const [x,y,z] = p;
       const ca=Math.cos(a), sa=Math.sin(a);
@@ -1404,52 +1988,47 @@
       return [x, y*ca - z*sa, y*sa + z*ca];
     }
 
-    let verts=[], edges=[];
-    if (shape==="cube"){
-      verts = [
-        [-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
-        [-1,-1, 1],[1,-1, 1],[1,1, 1],[-1,1, 1],
-      ];
-      edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
-    } else if (shape==="tetra"){
-      verts = [[0,1,0],[-1,-1,-1],[1,-1,-1],[0,-1,1]];
-      edges = [[0,1],[0,2],[0,3],[1,2],[2,3],[3,1]];
-    } else if (shape==="octa"){
-      verts = [[0,0,1.3],[0,0,-1.3],[1.3,0,0],[-1.3,0,0],[0,1.3,0],[0,-1.3,0]];
-      edges = [[0,2],[0,3],[0,4],[0,5],[1,2],[1,3],[1,4],[1,5],[2,4],[2,5],[3,4],[3,5]];
-    } else { // ring
-      const N=12;
-      for (let i=0;i<N;i++){
-        const a = (i/N)*Math.PI*2;
-        verts.push([Math.cos(a)*1.4, Math.sin(a)*1.0, 0]);
-        edges.push([i, (i+1)%N]);
-      }
+    const warp = 1 + amp*0.55 + geoMorph.energy*0.12;
+    const pts2 = new Array(vc);
+
+    for (let i=0;i<vc;i++){
+      const p = geoMorph.points[i];
+      let v = [p.x*warp, p.y*warp, p.z];
+      v = rotY(v, geoRot);
+      v = rotX(v, geoRot*0.83);
+      pts2[i] = project(v);
     }
 
-    // transform + draw
-    const jitter = amp*0.20;
-    const pts = verts.map(v => {
-      let p = rotY(v, geoRot);
-      p = rotX(p, geoRot*0.85);
-      return [p[0]*(1+jitter), p[1]*(1+jitter), p[2]];
-    }).map(project);
-
-    // color stays in the same palette (no neon)
-    g.strokeStyle = "#223d5c";
+    // draw lines (soft, continuous)
+    g.strokeStyle = "rgba(34,61,92,0.65)";
     g.lineWidth = 1;
-
     g.beginPath();
-    for (const [a,b] of edges){
-      const pa = pts[a], pb = pts[b];
-      g.moveTo(pa[0], pa[1]);
-      g.lineTo(pb[0], pb[1]);
+    for (let i=0;i<vc-1;i++){
+      const a = pts2[i], b = pts2[i+1];
+      g.moveTo(a[0], a[1]);
+      g.lineTo(b[0], b[1]);
+      if (i % 7 === 0 && i+13 < vc){
+        const c = pts2[i+13];
+        g.moveTo(a[0], a[1]);
+        g.lineTo(c[0], c[1]);
+      }
     }
     g.stroke();
 
     // points
-    g.fillStyle = "rgba(231,231,231,0.45)";
-    for (const p of pts){
+    g.fillStyle = "rgba(231,231,231,0.42)";
+    for (let i=0;i<vc;i++){
+      const p = pts2[i];
       g.fillRect(Math.round(p[0]), Math.round(p[1]), 1, 1);
+    }
+
+    // subtle ghost trail (keeps it "silky")
+    if (amp > 0.010){
+      g.fillStyle = `rgba(231,231,231,${clamp(amp*2.2, 0, 0.12)})`;
+      for (let i=0;i<vc;i+=3){
+        const p = pts2[i];
+        g.fillRect(Math.round(p[0])+1, Math.round(p[1]), 1, 1);
+      }
     }
 
     ctxGeo.imageSmoothingEnabled = false;
@@ -1457,8 +2036,12 @@
     ctxGeo.drawImage(offGeo, 0, 0, cvGeo.width, cvGeo.height);
   }
 
+
   function updateVisualDistribution(){
     updateFighters();
+    // keep visuals in sync with pattern edits
+    try{ game.recalc(); }catch(e){}
+    geoMorph.requestUpdate = true;
   }
 
   let lastFrame = now();
@@ -1474,10 +2057,21 @@
       // Use modulo time tracking with currentStep already advanced; fallback via currentStep-1.
       const displayStep = (state.currentStep - 1 + STEPS) % STEPS;
       setPlayingColumn(displayStep);
+
+      // step-triggered visuals (game/geo) — avoids "just bobbing"
+      if (displayStep !== state.visual.lastStep){
+        state.visual.lastStep = displayStep;
+        onStep(displayStep);
+      }
     }
 
     drawFighters(dt);
     drawGeo(dt);
+
+    // decay envelopes for smooth motion
+    vis.pulse *= 0.88;
+    vis.energy *= 0.90;
+    for (const c of CATS) vis.trig[c] *= 0.86;
 
     requestAnimationFrame(animLoop);
   }
