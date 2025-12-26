@@ -1,2850 +1,1941 @@
 <!doctype html>
-<!-- TCSEQ Ultimate (Glitch + EQ) — MIT License. -->
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>TCSEQ</title>
   <style>
     :root{
-      --bg:#000000;
-      --panel:#050505;
-      --panel2:#0b0b0b;
-      --fg:#c7c7c7;
-      --muted:#8f8f8f;
-      --blue:#6f8fb6;
-      --blue2:#486491;
-      --warn:#b38b00;
-      --bad:#b00020;
-      --good:#00b36b;
-      --line:#3a3a3a;
-      --invbg:#c7c7c7;
-      --invfg:#000000;
-      --shadow: 0 0 0 1px var(--line);
-      --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --bg:#070707;
+      --panel:#0f1114;
+      --panel2:#0b0d10;
+      --line:#2b2f36;
+      --line2:#1e2229;
+      --text:#e7e7e7;
+      --muted:#a6a6a6;
+      --muted2:#7a7a7a;
+      --accent:#1a2a3d; /* deep blue, kept subtle */
+      --accent2:#111820;
+      --danger:#d04b4b;
+      --ok:#6bd06b;
+      --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
-    html, body{
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
       background:var(--bg);
-      color:var(--fg);
-      padding:10px;
-    }
-    *{box-sizing:border-box;}
-    a{color:#9db7ff; text-decoration:none;}
-    a:hover{text-decoration:underline;}
-    .app{
-      position:relative;
-      display:block;
-      border:2px solid #1b1b1b;
-      background:#000000;
-      min-height:calc(100vh - 20px);
-    }
-    .titlebar{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:4px 8px;
-      border-bottom:1px solid rgba(255,255,255,0.25);
-      background:var(--blue2);
-      color:#ffffff;
-      user-select:none;
-      gap:10px;
-    }
-    .titlebar .left{
-      display:flex; gap:10px; align-items:center;
-      min-width:0;
-    }
-    .badge{
-      border:1px solid rgba(255,255,255,0.55);
-      background:rgba(0,0,0,0.25);
-      padding:1px 6px;
-      font-size:12px;
-      color:#ffffff;
-    }
-    .title{
-      font-weight:700;
-      letter-spacing:0.6px;
-      color:#ffffff;
-    }
-    .statusline{
-      border:1px solid rgba(255,255,255,0.40);
-      padding:2px 8px;
-      background:rgba(0,0,0,0.20);
-      color:#ffffff;
-      font-size:12px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width:360px;
-    }
-    .panel{
-      border:1px solid var(--line);
-      background:var(--panel);
-      padding:8px;
-      overflow:hidden;
-    }
-    .panelHeader{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:4px 6px;
-      border:1px solid var(--line);
-      background:#000000;
-      margin-bottom:6px;
-      font-weight:700;
-      letter-spacing:0.3px;
-    }
-    .panelBody{
-      padding:10px;
-      overflow:auto;
-      max-height:100%;
-    }
-    .sidebar{
-      position:fixed;
-      top:56px;
-      right:16px;
-      width:340px;
-      height:calc(100vh - 86px);
-      overflow:auto;
-      z-index:50;
-    }
-    .main{
-      max-width: 1040px;
-      margin: 10px auto;
-    }
-    .footer{
-      grid-column:1 / -1;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding:8px 10px;
-      background:var(--panel);
-      border:2px solid var(--line);
-      box-shadow:none;
-      font-size:12px;
-      color:var(--muted);
-    }
-    .btnRow{display:flex; flex-wrap:wrap; gap:8px;}
-    .btn{
-      border:1px solid #8a8a8a;
-      background:#000000;
-      color:var(--fg);
-      padding:4px 8px;
-      font-weight:700;
-      letter-spacing:0.3px;
-      cursor:pointer;
-      user-select:none;
-      font-size:12px;
-    }
-    .btn:hover{background:var(--invbg); color:var(--invfg);}
-    .btn:active{transform:translateY(1px);}
-    .btn[disabled]{opacity:0.45; cursor:not-allowed;}
-    .btn.secondary{border:1px solid #5f5f5f; background:#000000; color:var(--fg);}
-    .btn.secondary:hover{background:var(--invbg); color:var(--invfg);}
-    .btn.danger{border-color:#c7c7c7; background:#000000; color:#ffffff;}
-    .btn.danger:hover{background:#3a0014;}
-    .kv{
-      display:grid;
-      grid-template-columns: 120px 1fr;
-      gap:6px 10px;
-      font-size:12px;
-      color:var(--muted);
-      margin:10px 0;
-    }
-    .kv b{color:var(--fg); font-weight:600;}
-    .divider{height:1px; background:var(--line); margin:10px 0;}
-    .hint{color:var(--muted); font-size:12px; line-height:1.45;}
-    .warn{color:var(--warn);}
-    .good{color:var(--good);}
-    .bad{color:var(--bad);}
-    input[type="range"], input[type="number"], select{
-      width:100%;
-      background:transparent;
-      color:var(--fg);
-      border:2px solid var(--line);
-      padding:6px 8px;
+      color:var(--text);
       font-family:var(--font);
-      font-size:12px;
-      outline:none;
+      letter-spacing:0.2px;
     }
-    input[type="range"]{padding:0; border:none;}
-    label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px; letter-spacing:0.06em;}
-    .ctrlGrid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-    }
-    .ctrl{min-width:0;}
-    .dropzone{
-      border:1px dashed var(--line);
-      background: #00050f;
-      padding:10px;
-      font-size:12px;
-      color:var(--muted);
-      line-height:1.45;
-    }
-    .dropzone.drag{border-color:#9db7ff; color:#9db7ff;}
-    .fileList{
-      font-size:12px;
+    button, select, input{
+      font-family:var(--font);
+      background:transparent;
+      color:var(--text);
       border:1px solid var(--line);
-      background:#00040c;
-      padding:8px;
-      max-height:170px;
-      overflow:auto;
-      white-space:nowrap;
-    }
-    .fileItem{
-      display:flex;
-      justify-content:space-between;
-      gap:8px;
-      padding:2px 0;
-      color:var(--muted);
-    }
-    .fileItem .name{
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-      max-width:240px;
-    }
-    .fileItem .tag{color:var(--fg);}
-    .fileItem.selected{
-      background:var(--invbg);
-      color:var(--invfg);
-    }
-    .fileItem.selected .tag{color:var(--invfg);}
-    .monoBox{
-      border:1px solid var(--line);
-      background:#00040c;
-      padding:8px;
-      font-size:12px;
-      color:var(--muted);
-      overflow:auto;
-      white-space:pre-wrap;
-    }
-    .seqWrap{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      min-height:0;
-      flex:1;
-    }
-    .seqTop{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-    }
-    .seqTitle{
-      font-size:12px;
-      letter-spacing:0.08em;
-      color:var(--muted);
-    }
-    .gridFrame{
-      border:1px solid var(--line);
-      background:#00040c;
-      box-shadow:none;
-      padding:10px;
-      min-height:0;
-      overflow:auto;
-    }
-    .gridLegend{
-      display:flex;
-      gap:12px;
-      flex-wrap:wrap;
-      font-size:12px;
-      color:var(--muted);
-      margin-bottom:8px;
-    }
-    .glyph{
-      display:inline-block;
-      padding:0 6px;
-      border:1px solid var(--line);
-      background:#00060f;
-      color:var(--fg);
-      margin-right:6px;
-    }
-    .seqGrid{
-      display:grid;
-      grid-template-columns: 90px repeat(16, 16px);
-      gap:2px;
-      align-items:center;
+      padding:6px 10px;
       font-size:12px;
       line-height:1;
-      user-select:none;
+      outline:none;
     }
-    .rowLabel{
-      color:var(--fg);
-      letter-spacing:0.06em;
-      font-size:12px;
-      padding-right:6px;
-    }
-    .cell{
-      width:16px; height:16px;
-      display:flex; align-items:center; justify-content:center;
-      border:1px solid var(--line);
-      background:#000814;
-      color:var(--fg);
+    button{
       cursor:pointer;
-    }
-    .cell:hover{background:#001122;}
-    .cell.off{color:#223045;}
-    .cell.ghost{color:#4f5a6a;}
-    .cell.hit{color:#c8c8c8;}
-    .cell.accent{background:#001b44;}
-    .cell.cursor{
-      outline:1px solid #9db7ff;
-      box-shadow:none;
-    }
-    .cell.cursorBlink{
-      background:var(--invbg);
-      color:var(--invfg);
-    }
-    .stepHeader{
-      display:grid;
-      grid-template-columns: 90px repeat(16, 16px);
-      gap:2px;
-      align-items:center;
-      font-size:11px;
-      color:var(--muted);
-      margin-bottom:6px;
       user-select:none;
     }
-    .stepHeader div{display:flex; justify-content:center;}
-    .stepHeader .h0{justify-content:flex-start;}
-    .toast{
-      position:fixed;
-      bottom:12px;
-      left:12px;
-      right:12px;
-      max-width:900px;
-      margin:auto;
-      background:var(--panel2);
-      border:1px solid var(--line);
-      color:var(--fg);
-      padding:10px;
-      font-size:12px;
-      box-shadow:none;
-      display:none;
-      white-space:pre-wrap;
+    button:hover, select:hover{border-color:#3b414a}
+    button:active{transform:translateY(1px)}
+    button.primary{
+      border-color:#3b4655;
+      background:var(--accent2);
     }
-    .toast.show{display:block;}
-    .kbd{
-      border:1px solid var(--line);
-      padding:0 6px;
-      background:#000814;
-      color:var(--fg);
+    button.primary:hover{background:var(--accent)}
+    button.ghost{
+      border-color:var(--line2);
+      color:var(--muted);
+    }
+    button.ghost:hover{border-color:var(--line)}
+    button.danger{border-color:rgba(208,75,75,.55); color:#ffd1d1}
+    button[disabled], select[disabled]{opacity:.45; cursor:not-allowed}
+    .app{
+      height:100%;
+      display:flex;
+      flex-direction:column;
+    }
+    /* Top bar (no boxed TCSEQ) */
+    .topbar{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      border-bottom:1px solid var(--line2);
+      background:#050505;
+    }
+    .brand{
+      font-size:14px;
+      letter-spacing:2px;
+      margin-right:auto;
+      color:#efefef;
+      user-select:none;
+    }
+    .topbar .cluster{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
     }
     .mini{
       font-size:11px;
       color:var(--muted);
-      margin-top:6px;
-      line-height:1.4;
+      border:1px solid var(--line2);
+      padding:5px 8px;
     }
-    .hidden{display:none !important;}
-    .compact .app{grid-template-columns: 1fr;}
-    .compact .sidebar{display:none;}
-    .compact .main{grid-column:1;}
-  
-    /* Mobile / narrow screens: keep sequencer visible */
-    @media (max-width: 900px){
-      body{padding:8px;}
-      .titlebar{position:sticky; top:0; z-index:60;}
-      .topbarRight{flex-wrap:wrap; justify-content:flex-end;}
-      .statusline{max-width:none;}
-
-      /* Disable drawer behavior on mobile */
-      .sidebar{position:static; width:auto; height:auto; right:auto; top:auto; z-index:auto;}
-      body:not(.compact) .app{padding-right:0;}
-
-      /* Stack: sequencer first, controls panel below (when shown) */
-      .app{display:flex; flex-direction:column; gap:6px; padding:6px;}
-      .main{order:2; margin:0;}
-      .sidebar{order:3;}
-      .footer{order:4;}
-      .gridFrame{overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;}
-      .seqGrid{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
-      .stepHeader{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
+    /* Main layout */
+    .main{
+      flex:1;
+      min-height:0;
+      display:grid;
+      grid-template-columns: 340px 1fr;
+      gap:10px;
+      padding:10px;
+    }
+    .panel{
+      border:1px solid var(--line2);
+      background:var(--panel);
+      min-height:0;
+    }
+    .left{
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+      gap:10px;
+    }
+    .left .panel{padding:10px}
+    .panel-title{
+      font-size:12px;
+      color:var(--muted);
+      letter-spacing:1px;
+      margin:0 0 8px 0;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .row{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .control-row{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .control-row .leftbtns, .control-row .rightbtns{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .filelist{
+      border:1px solid var(--line2);
+      background:var(--panel2);
+      padding:6px;
+      height:240px;
+      overflow:auto;
+    }
+    .fileitem{
+      display:grid;
+      grid-template-columns: 1fr 92px;
+      gap:8px;
+      padding:6px 6px;
+      border-bottom:1px solid rgba(255,255,255,0.04);
+      align-items:center;
+    }
+    .fileitem:last-child{border-bottom:none}
+    .fname{
+      cursor:pointer;
+      color:#eaeaea;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      padding:2px 0;
+    }
+    .fname:hover{color:#ffffff; text-decoration:underline}
+    .cat{
+      justify-self:end;
+      text-align:right;
+      color:var(--muted);
+      cursor:pointer;
+      padding:2px 6px;
+      border:1px solid var(--line2);
+      background:#0a0c10;
+      user-select:none;
+    }
+    .cat:hover{border-color:var(--line)}
+    .fileitem.selected{
+      background:rgba(26,42,61,.25);
+      outline:1px solid rgba(255,255,255,0.06);
+    }
+    .hint{
+      color:var(--muted2);
+      font-size:11px;
+      line-height:1.3;
+      margin-top:8px;
     }
 
-      .titlebar{position:sticky; top:0; z-index:10; padding:4px 6px;}
-      .topbarRight{flex-wrap:wrap; justify-content:flex-end;}
-      .statusline{max-width:none;}
-      .sidebar{order:2;}
-      .main{order:3;}
-      .footer{order:4;}
-      .panelBody{max-height:none; overflow:visible;}
-      .gridFrame{overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;}
-      .seqGrid{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
-      .stepHeader{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
+    /* Sequencer + right visuals */
+    .work{
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+      gap:10px;
+    }
+    .seqwrap{
+      display:grid;
+      grid-template-columns: 1fr 360px;
+      gap:10px;
+      min-height:0;
+    }
+    .sequencer{
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .seq-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:8px;
+    }
+    .seq-head .leftmeta{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      color:var(--muted);
+      font-size:11px;
+    }
+    .seq-head .rightmeta{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+    }
+    .gridwrap{
+      border:1px solid var(--line2);
+      background:var(--panel2);
+      padding:8px;
+      overflow:auto;
+      min-height:0;
+    }
+    .legend{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:center;
+      color:var(--muted);
+      font-size:11px;
+      margin-bottom:8px;
+      user-select:none;
+    }
+    .legend .sw{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .swbox{
+      width:10px;height:10px;
+      border:1px solid var(--line2);
+      background:#050607;
+    }
+    .swbox.ghost{background:#0b111a}
+    .swbox.hit{background:#162437}
+    .swbox.acc{background:#223d5c}
+    .grid{
+      display:grid;
+      grid-template-columns: 90px repeat(16, 16px);
+      gap:6px;
+      align-items:center;
+    }
+    .rlabel{
+      color:var(--muted);
+      font-size:11px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      padding-right:4px;
+    }
+    .step{
+      width:16px;height:16px;
+      border:1px solid var(--line2);
+      background:#050607;
+      cursor:pointer;
+      position:relative;
+      user-select:none;
+    }
+    .step:hover{border-color:var(--line)}
+    .step[data-state="1"]{background:#0b111a}
+    .step[data-state="2"]{background:#162437}
+    .step[data-state="3"]{background:#223d5c}
+    .step.playing::after{
+      content:"";
+      position:absolute; inset:-2px;
+      border:1px solid rgba(255,255,255,0.25);
+      pointer-events:none;
+    }
+    .steps-header{
+      display:grid;
+      grid-template-columns: 90px repeat(16, 16px);
+      gap:6px;
+      margin-bottom:6px;
+      align-items:center;
+      color:var(--muted);
+      font-size:10px;
+      user-select:none;
+    }
+    .steps-header .h{ text-align:center; }
+    .vispanel{
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .vis{
+      border:1px solid var(--line2);
+      background:var(--panel2);
+      height:190px;
+      position:relative;
+      overflow:hidden;
+    }
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+      image-rendering: pixelated;
+    }
+    .vislabel{
+      position:absolute;
+      top:8px; left:10px;
+      font-size:11px;
+      color:var(--muted);
+      letter-spacing:1px;
+      user-select:none;
+      background:rgba(0,0,0,.25);
+      padding:2px 6px;
+      border:1px solid rgba(255,255,255,0.06);
     }
 
-      .titlebar{position:sticky; top:0; z-index:10;}
-      .sidebar{order:2;}
-      .main{order:3;}
-      .footer{order:4;}
-      .panelBody{max-height:none; overflow:visible;}
-      .gridFrame{overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;}
-      .seqGrid{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
-      .stepHeader{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
+    /* Footer removed per spec; keep only a tiny status strip */
+    .status{
+      padding:6px 12px;
+      border-top:1px solid var(--line2);
+      color:var(--muted2);
+      font-size:11px;
+      background:#050505;
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+    }
+    .status .right{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60%}
+
+    /* Hidden panel mode */
+    .hidden-left .main{
+      grid-template-columns: 1fr;
+    }
+    .hidden-left .left{display:none}
+
+    /* Modal */
+    .modal-backdrop{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.72);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:50;
+    }
+    .modal{
+      width:min(560px, 92vw);
+      border:1px solid var(--line);
+      background:#0b0c0f;
+      padding:14px;
+    }
+    .modal h3{
+      margin:0 0 10px 0;
+      font-size:13px;
+      color:#f0f0f0;
+      letter-spacing:1px;
+    }
+    .modal .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .modal label{
+      display:block;
+      font-size:11px;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+    .modal .actions{
+      margin-top:12px;
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .kbd{
+      border:1px solid var(--line2);
+      padding:2px 6px;
+      font-size:10px;
+      color:var(--muted);
+      background:#07090c;
+    }
+    .toast{
+      position:fixed;
+      left:12px;
+      bottom:44px;
+      border:1px solid var(--line2);
+      background:#090a0d;
+      padding:8px 10px;
+      font-size:11px;
+      color:var(--muted);
+      display:none;
+      z-index:60;
+      max-width:min(560px, 92vw);
     }
 
-      .titlebar{position:sticky; top:0; z-index:10;}
-      .sidebar{order:2;}
-      .main{order:3;}
-      .footer{order:4;}
-
-      /* Let the page scroll naturally */
-      .panelBody{max-height:none; overflow:visible;}
-      .gridFrame{overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;}
-
-      /* Sequencer readable and scrollable */
-      .seqGrid{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
-      .stepHeader{grid-template-columns: 78px repeat(16, 16px); min-width: 420px;}
-      .rowLabel{font-size:11px;}
-      .panelHeader{gap:8px; flex-wrap:wrap;}
-      .btn{padding:7px 9px;}
+    /* Responsive */
+    @media (max-width: 980px){
+      .main{grid-template-columns: 1fr; }
+      .seqwrap{grid-template-columns: 1fr; }
+      .vispanel{order:2}
+      .sequencer{order:1}
+      .filelist{height:200px}
+      .vis{height:180px}
     }
-
-      .sidebar{grid-row:2; grid-column:1;}
-      .main{grid-row:3; grid-column:1;}
-      .titlebar{position:sticky; top:0; z-index:5;}
-      .seqGrid{grid-template-columns: 78px repeat(16, 16px);}
-      .stepHeader{grid-template-columns: 78px repeat(16, 16px);}
-      .rowLabel{font-size:11px;}
-      .panelHeader{gap:8px; flex-wrap:wrap;}
-      .btn{padding:7px 9px;}
-    }
-
-
-    .winbtns{display:flex; gap:6px; align-items:center; margin-right:10px;}
-    .winbtn{display:inline-block; width:18px; text-align:center; border:1px solid rgba(255,255,255,0.55); color:#fff; font-size:12px; line-height:16px; height:16px; background:rgba(0,0,0,0.18);}
-    .winbtn.close{border-color:rgba(255,255,255,0.75);}
-
-
-    /* Titlebar controls: always accessible even when panel is hidden */
-    .topbarRight{display:flex; flex-direction:row; align-items:center; gap:10px;}
-    .topbarBtns{display:flex; gap:6px; align-items:center; justify-content:flex-end; flex-wrap:wrap;}
-    .topbarBtns .btn{padding:5px 9px; font-size:12px;}
-    @media (max-width: 900px){
-      .topbarRight{align-items:stretch;}
-      .topbarBtns{justify-content:flex-start;}
-      .statusline{max-width:none;}
-    }
-
-
-    /* reserve space for drawer when panel is visible */
-    body:not(.compact) .app{padding-right:360px;}
-    body.compact .app{padding-right:0;}
-    
-body.compact .sidebar{display:none;}
-
-    /* hide duplicate transport buttons in sidebar (controls live in top-right) */
-    #btnGen, #btnPlay, #btnStop{display:none;}
-    
-</style>
+  </style>
 </head>
 <body>
-  <div id="root" class="app">
-    <div class="titlebar">
-      <div class="left">
-        <span class="badge">TCSEQ</span>
-        <div class="title">TCSEQ</div>
-      </div>
-      <div class="topbarRight">
-      <div class="topbarBtns">
-        <button class="btn secondary" id="btnCompactTop">HIDE PANEL</button>
-        <button class="btn secondary" id="btnHelpTop">HELP</button>
-        <button class="btn secondary" id="btnPickTop">FILES</button>
-        <button class="btn secondary" id="btnAnalyzeTop">ANALYZE</button>
-        <button class="btn" id="btnGenTop">GENERATE</button>
-        <button class="btn secondary" id="btnPlayTop">PLAY</button>
-        <button class="btn danger" id="btnStopTop">STOP</button>
-        <button class="btn secondary" id="btnDbgTop">DEBUG</button>
-        <button class="btn secondary" id="btnPanicTop">PANIC</button>
-      </div>
-      <div class="statusline" id="statusLine">Boot…</div>
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="brand">TCSEQ</div>
+
+    <div class="cluster">
+      <button id="btnPlay" class="primary">PLAY</button>
+      <button id="btnStop">STOP</button>
+      <button id="btnRecord">RECORD</button>
+      <button id="btnExport">EXPORT</button>
+      <button id="btnHidePanel" class="ghost">HIDE PANEL</button>
+      <button id="btnHelp" class="ghost">HELP</button>
     </div>
-</div>
+  </div>
 
-    <div class="panel sidebar" id="sidebar">
-      <div class="panelHeader">
-        <div>CONTROL</div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn secondary" id="btnCompact">HIDE PANEL</button>
-          <button class="btn secondary" id="btnHelp">HELP</button>
-        </div>
-      </div>
-      <div class="panelBody">
-        <div class="btnRow">
-          <button class="btn" id="btnPick">LOAD FILES</button>
-          <button class="btn secondary" id="btnClear">CLEAR</button>
+  <div class="main">
+    <div class="left">
+      <div class="panel" id="controlPanel">
+        <div class="panel-title">
+          <span>CONTROL</span>
+          <span class="mini" id="audioState">audio: idle</span>
         </div>
 
-        <div class="divider"></div>
-
-        <div id="dropzone" class="dropzone" tabindex="0">
-          Drag & drop up to <b>200</b> audio files here.<br/>
-          Works best on <b>localhost</b> (not <span class="warn">file://</span>).
-          <div class="mini">Tip: If audio is silent, click <span class="kbd">PLAY</span> once to unlock AudioContext.</div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="kv">
-          <div>FILES</div><div><b id="kvFiles">0</b></div>
-          <div>DECODED</div><div><b id="kvDecoded">0</b></div>
-          <div>ANALYZED</div><div><b id="kvAnalyzed">0</b></div>
-          <div>CTX</div><div><b id="kvCtx">—</b></div>
-        </div>
-
-        <div class="fileList" id="fileList" aria-label="Loaded file list"></div>
-
-        <div class="divider"></div>
-
-        <div class="btnRow">
-          <button class="btn" id="btnAnalyze">ANALYZE</button>
-          <button class="btn secondary" id="btnAutoAssign">AUTO-ASSIGN</button>
-          <button class="btn secondary" id="btnExport">EXPORT LOG</button>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="ctrlGrid">
-          <div class="ctrl">
-            <label for="tempo">TEMPO (BPM)</label>
-            <input id="tempo" type="number" min="40" max="260" value="120"/>
+        <div class="control-row">
+          <div class="leftbtns">
+            <button id="btnLoad" class="primary">LOAD FILES</button>
+            <button id="btnClear">CLEAR</button>
           </div>
-          <div class="ctrl">
-            <label for="swing">SWING (%)</label>
-            <input id="swing" type="number" min="0" max="75" value="12"/>
-          </div>
-          <div class="ctrl">
-            <label for="complexity">COMPLEXITY</label>
-            <input id="complexity" type="number" min="0" max="100" value="45"/>
-          </div>
-          <div class="ctrl">
-            <label for="variation">VARIATION</label>
-            <input id="variation" type="number" min="0" max="100" value="35"/>
-          </div>
-          <div class="ctrl">
-            <label for="bars">BARS</label>
-            <select id="bars">
-              <option value="1">1</option>
-              <option value="2" selected>2</option>
-              <option value="4">4</option>
-              <option value="8">8</option>
-            </select>
-          </div>
-
-          <div class="ctrl">
-            <label for="groove">GROOVE</label>
-            <select id="groove">
-              <option value="straight" selected>STRAIGHT</option>
-              <option value="break">BREAKBEAT</option>
-              <option value="jungle">JUNGLE</option>
-              <option value="dnb">DNB</option>
-            </select>
-          </div>
-
-          <div class="ctrl">
-            <label for="glyphSet">GLYPHS</label>
-            <select id="glyphSet">
-              <option value="ascii" selected>ASCII</option>
-              <option value="blocks">BLOCKS</option>
-              <option value="dots">DOTS</option>
-            </select>
+          <div class="rightbtns">
+            <button id="btnAnalyzeGenerate" class="primary">ANALYZE+GENERATE</button>
+            <button id="btnDebug" class="ghost">DEBUG</button>
           </div>
         </div>
 
-        <div class="divider"></div>
-
-        
-        <div class="divider"></div>
-
-        <div class="panelHeader" style="border:1px solid var(--line); background:#00060f; margin-bottom:10px;">
-          <div>FX</div>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <span class="badge" style="background:#00060f;">LIVE</span>
-          </div>
-        </div>
-
-        <div class="ctrlGrid">
-          <div class="ctrl">
-            <label for="fxGlitchOn">GLITCH</label>
-            <select id="fxGlitchOn">
-              <option value="0" selected>OFF</option>
-              <option value="1">ON</option>
-            </select>
-          </div>
-          <div class="ctrl">
-            <label for="fxGlitchMix">GLITCH MIX (%)</label>
-            <input id="fxGlitchMix" type="number" min="0" max="100" value="22"/>
-          </div>
-
-          <div class="ctrl">
-            <label for="fxGlitchRate">GLITCH RATE (%)</label>
-            <input id="fxGlitchRate" type="number" min="0" max="100" value="35"/>
-          </div>
-          <div class="ctrl">
-            <label for="fxGlitchStut">STUTTER (%)</label>
-            <input id="fxGlitchStut" type="number" min="0" max="100" value="20"/>
-          </div>
-
-          <div class="ctrl">
-            <label for="fxGlitchLen">STUTTER LEN (ms)</label>
-            <input id="fxGlitchLen" type="number" min="20" max="350" value="120"/>
-          </div>
-          <div class="ctrl">
-            <label for="fxGlitchCrush">BITCRUSH (%)</label>
-            <input id="fxGlitchCrush" type="number" min="0" max="100" value="25"/>
-          </div>
-
-          <div class="ctrl">
-            <label for="fxGlitchDown">DOWNSAMPLE (x)</label>
-            <input id="fxGlitchDown" type="number" min="1" max="24" value="6"/>
-          </div>
-          <div class="ctrl">
-            <label for="fxGlitchDrop">DROPOUT (%)</label>
-            <input id="fxGlitchDrop" type="number" min="0" max="100" value="8"/>
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="panelHeader" style="border:1px solid var(--line); background:#00060f; margin-bottom:10px;">
-          <div>EQ</div>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <span class="badge" style="background:#00060f;">3-BAND</span>
-          </div>
-        </div>
-
-        <div class="ctrlGrid">
-          <div class="ctrl">
-            <label for="fxEqOn">EQ</label>
-            <select id="fxEqOn">
-              <option value="0">OFF</option>
-              <option value="1" selected>ON</option>
-            </select>
-          </div>
-          <div class="ctrl">
-            <label for="fxEqMidFreq">MID FREQ (Hz)</label>
-            <select id="fxEqMidFreq">
-              <option value="400">400</option>
-              <option value="800">800</option>
-              <option value="1200" selected>1200</option>
-              <option value="2000">2000</option>
-            </select>
-          </div>
-
-          <div class="ctrl">
-            <label for="fxEqLow">LOW (dB)</label>
-            <input id="fxEqLow" type="number" min="-12" max="12" value="1"/>
-          </div>
-          <div class="ctrl">
-            <label for="fxEqMid">MID (dB)</label>
-            <input id="fxEqMid" type="number" min="-12" max="12" value="0"/>
-          </div>
-
-          <div class="ctrl">
-            <label for="fxEqHigh">HIGH (dB)</label>
-            <input id="fxEqHigh" type="number" min="-12" max="12" value="2"/>
-          </div>
-          <div class="ctrl">
-            <label for="fxOut">OUTPUT (dB)</label>
-            <input id="fxOut" type="number" min="-12" max="6" value="0"/>
-          </div>
-        </div>
-
-
-
-        <div class="divider"></div>
-
-        <div class="panelHeader" style="border:1px solid var(--line); background:#00060f; margin-bottom:10px;">
-          <div>BREAK FX</div>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <span class="badge" style="background:#00060f;">AUTO</span>
-          </div>
-        </div>
-
-        <div class="ctrlGrid">
-          <div class="ctrl">
-            <label for="fxBreakMode">MODE</label>
-            <select id="fxBreakMode">
-              <option value="off" selected>OFF</option>
-              <option value="break">BREAKBEAT</option>
-              <option value="jungle">JUNGLE</option>
-              <option value="dnb">DNB</option>
-            </select>
-          </div>
-          <div class="ctrl">
-            <label for="fxBreakIntensity">INTENSITY (%)</label>
-            <input id="fxBreakIntensity" type="number" min="0" max="100" value="35"/>
-          </div>
-
-          <div class="ctrl">
-            <label for="fxRepeatDiv">REPEAT DIV</label>
-            <select id="fxRepeatDiv">
-              <option value="16" selected>1/16</option>
-              <option value="32">1/32</option>
-              <option value="8">1/8</option>
-            </select>
-          </div>
-          <div class="ctrl">
-            <label for="fxLPF">LPF CUTOFF (Hz)</label>
-            <input id="fxLPF" type="number" min="200" max="20000" value="12000"/>
-          </div>
-
-          <div class="ctrl">
-            <label for="fxDelayDiv">DELAY DIV</label>
-            <select id="fxDelayDiv">
-              <option value="off" selected>OFF</option>
-              <option value="16">1/16</option>
-              <option value="8">1/8</option>
-              <option value="4">1/4</option>
-            </select>
-          </div>
-          <div class="ctrl">
-            <label for="fxDelaySend">DELAY SEND (%)</label>
-            <input id="fxDelaySend" type="number" min="0" max="100" value="10"/>
-          </div>
-
-          <div class="ctrl">
-            <label for="fxDelayFb">DELAY FB (%)</label>
-            <input id="fxDelayFb" type="number" min="0" max="95" value="35"/>
-          </div>
-          <div class="ctrl">
-            <label for="fxDelayCut">DELAY CUT (Hz)</label>
-            <input id="fxDelayCut" type="number" min="200" max="20000" value="4200"/>
-          </div>
-        </div>
-
-<div class="btnRow">
-          <button class="btn" id="btnGen">GENERATE</button>
-          <button class="btn" id="btnPlay">PLAY</button>
-          <button class="btn danger" id="btnStop">STOP</button>
-        </div>
-
-        <div class="divider"></div>
+        <div class="filelist" id="fileList" tabindex="0" aria-label="file list"></div>
 
         <div class="hint">
-          Keyboard: <span class="kbd">↑</span><span class="kbd">↓</span><span class="kbd">←</span><span class="kbd">→</span> move cursor ·
-          <span class="kbd">Space</span> toggle hit ·
-          <span class="kbd">A</span> accent ·
-          <span class="kbd">G</span> ghost ·
-          <span class="kbd">M</span> mute row ·
-          <span class="kbd">Tab</span> next sample ·
-          <span class="kbd">1..6</span> assign category ·
-          <span class="kbd">Enter</span> preview sample
+          Click a filename to preview. Click the class label to manually correct classification.<br/>
+          Keys: <span class="kbd">↑</span>/<span class="kbd">↓</span> select, <span class="kbd">Enter</span> preview, <span class="kbd">1-6</span> set class.
         </div>
       </div>
     </div>
 
-    <div class="panel main">
-      <div class="panelHeader">
-        <div>SEQUENCER</div>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <select id="viewBar" style="width:140px;">
-            <option value="follow">VIEW: FOLLOW</option>
-            <option value="1">VIEW: BAR 1</option>
-          </select>
-          <button class="btn secondary" id="btnSeed">SEED: AUTO</button>
-          <button class="btn secondary" id="btnReset">RESET GRID</button>
-        </div>
-      </div>
-
-      <div class="panelBody seqWrap">
-        <div class="seqTop">
-          <div class="seqTitle" id="seqTitle">No pattern. Load files → Analyze → Generate.</div>
-          <div class="seqTitle" id="clockTitle">—</div>
-        </div>
-
-        <div class="gridFrame">
-          <div class="gridLegend">
-            <span class="glyph" id="legendEmpty">.</span> empty
-            <span class="glyph" id="legendGhost">:</span> ghost
-            <span class="glyph" id="legendHit">*</span> hit
-            <span class="glyph" id="legendAccent">#</span> accent
-            <span class="glyph">↵</span> Enter = preview
+    <div class="work">
+      <div class="panel seqwrap">
+        <div class="sequencer">
+          <div class="panel-title">
+            <span>SEQUENCER</span>
+            <span class="mini" id="transport">bpm 170 • 1 bar • 16 steps</span>
           </div>
 
-          <div class="stepHeader" id="stepHeader"></div>
-          <div class="seqGrid" id="seqGrid" tabindex="0" aria-label="Step sequencer grid"></div>
+          <div class="seq-head">
+            <div class="leftmeta">
+              <span id="patternInfo">Pattern: 1 bar(s) // viewing BAR 1</span>
+            </div>
 
-          <div class="divider"></div>
+            <div class="rightmeta">
+              <label class="mini" style="display:flex; gap:8px; align-items:center;">
+                VIEW
+                <select id="viewMode">
+                  <option value="follow">FOLLOW</option>
+                  <option value="static">STATIC</option>
+                </select>
+              </label>
 
-          <div class="monoBox" id="inspector">INSPECTOR: (select a file or a cell)</div>
-        </div>
+              <label class="mini" style="display:flex; gap:8px; align-items:center;">
+                STYLE
+                <select id="styleMode">
+                  <option value="dnb">DNB</option>
+                  <option value="jungle">JUNGLE</option>
+                  <option value="breakbeat">BREAKBEAT</option>
+                  <option value="minimal">MINIMAL</option>
+                </select>
+              </label>
 
-        <div class="panel">
-          <div class="panelHeader">
-            <div>DEBUG</div>
-            <div style="display:flex; gap:8px;">
-              <button class="btn secondary" id="btnDbg">TOGGLE</button>
-              <button class="btn secondary" id="btnPanic">AUDIO PANIC</button>
+              <label class="mini" style="display:flex; gap:8px; align-items:center;">
+                DENS
+                <input id="density" type="range" min="0" max="100" value="58" style="width:110px;">
+              </label>
+
+              <button id="btnRandom" class="primary">RANDOM PATTERN</button>
+              <button id="btnResetGrid">RESET GRID</button>
             </div>
           </div>
-          <div class="panelBody hidden" id="debugBox">
-            <div class="monoBox" id="logBox">Boot log…</div>
+
+          <div class="gridwrap" id="gridWrap">
+            <div class="legend">
+              <span class="sw"><span class="swbox"></span> empty</span>
+              <span class="sw"><span class="swbox ghost"></span> ghost</span>
+              <span class="sw"><span class="swbox hit"></span> hit</span>
+              <span class="sw"><span class="swbox acc"></span> accent</span>
+              <span>Enter = preview (selected file)</span>
+            </div>
+
+            <div class="steps-header" id="stepsHeader"></div>
+            <div class="grid" id="grid"></div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <div class="footer">
-      <div>
-        <span class="badge">MODE</span>
-        <span id="modeLine">Idle</span>
-        <span style="margin-left:10px;" class="badge">SELECTED</span>
-        <span id="selLine">—</span>
-      </div>
-      <div>
-        <span class="badge">NOTE</span>
-        <span id="noteLine">Serve via <b>python3 -m http.server</b> for best reliability.</span>
+        <div class="vispanel">
+          <div class="vis">
+            <div class="vislabel">8‑BIT SCENE</div>
+            <canvas id="cvFighters" width="320" height="180"></canvas>
+          </div>
+          <div class="vis">
+            <div class="vislabel">PSEUDO‑3D GEOMETRY</div>
+            <canvas id="cvGeo" width="320" height="180"></canvas>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
+  <div class="status">
+    <div id="statusLeft">ready</div>
+    <div class="right" id="statusRight"></div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+  <div class="modal">
+    <h3 id="exportTitle">EXPORT</h3>
+    <div class="grid2">
+      <div>
+        <label>Format</label>
+        <select id="exportFormat">
+          <option value="wav">WAV (offline render)</option>
+          <option value="webm">WEBM (real-time record)</option>
+          <option value="mp3" disabled>MP3 (requires encoder)</option>
+        </select>
+      </div>
+      <div>
+        <label>Sample Rate</label>
+        <select id="exportSR">
+          <option value="44100">44100</option>
+          <option value="48000" selected>48000</option>
+        </select>
+      </div>
+      <div>
+        <label>Length</label>
+        <select id="exportBars">
+          <option value="1">1 bar</option>
+          <option value="2">2 bars</option>
+          <option value="4" selected>4 bars</option>
+          <option value="8">8 bars</option>
+        </select>
+      </div>
+      <div>
+        <label>Normalize</label>
+        <select id="exportNorm">
+          <option value="0">off</option>
+          <option value="1" selected>on</option>
+        </select>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:10px">
+      WAV export is offline-rendered (no clicks/pops). WEBM export is recorded in real time. MP3 is disabled unless you add an encoder (e.g., lamejs).
+    </div>
+    <div class="actions">
+      <button id="btnExportCancel">CANCEL</button>
+      <button id="btnExportGo" class="primary">EXPORT NOW</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<input id="fileInput" type="file" accept="audio/*" multiple style="display:none"/>
 
 <script>
 (() => {
-  'use strict';
+  "use strict";
 
-  // ====== Utilities ======
+  // ---------- Utilities ----------
   const $ = (id) => document.getElementById(id);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const now = () => (performance && performance.now) ? performance.now() : Date.now();
+  const now = () => performance.now();
+  const toast = (msg, ms=2600) => {
+    const t = $("toast");
+    t.textContent = msg;
+    t.style.display = "block";
+    clearTimeout(toast._tm);
+    toast._tm = setTimeout(()=>{ t.style.display="none"; }, ms);
+  };
 
-  function fmt(n, d=2){
-    if (!isFinite(n)) return '—';
-    const s = n.toFixed(d);
-    return s.replace(/\.00$/, '');
-  }
-
-  function safeName(file){
-    try { return file.name || '(unnamed)'; } catch { return '(unnamed)'; }
-  }
-
-  // ====== Logger ======
-  class Logger{
-    constructor(elStatus, elBox){
-      this.elStatus = elStatus;
-      this.elBox = elBox;
-      this.lines = [];
-      this.max = 1200;
-    }
-    log(msg, level='INFO'){
-      const ts = new Date().toISOString().replace('T',' ').replace('Z','');
-      const line = `[${ts}] ${level}: ${msg}`;
-      this.lines.push(line);
-      if (this.lines.length > this.max) this.lines.shift();
-      if (this.elBox) this.elBox.textContent = this.lines.join('\n');
-      if (this.elStatus){
-        this.elStatus.textContent = msg.length > 96 ? msg.slice(0, 96) + '…' : msg;
-      }
-      // console mirror
-      if (level === 'ERR') console.error(line);
-      else if (level === 'WARN') console.warn(line);
-      else console.log(line);
-    }
-    exportText(){ return this.lines.join('\n'); }
-  }
-
-  const toast = (() => {
-    const el = $('toast');
-    let t = null;
-    return {
-      show(msg, ms=2600){
-        el.textContent = msg;
-        el.classList.add('show');
-        clearTimeout(t);
-        t = setTimeout(() => el.classList.remove('show'), ms);
-      }
+  function mulberry32(seed){
+    let t = seed >>> 0;
+    return function(){
+      t += 0x6D2B79F5;
+      let x = Math.imul(t ^ (t >>> 15), 1 | t);
+      x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
     };
-  })();
-
-  
-  // ====== Glitch Worklet (single-file, blob-loaded) ======
-  const GLITCH_WORKLET_CODE = `
-class GlitchProcessor extends AudioWorkletProcessor {
-  static get parameterDescriptors() {
-    return [
-      { name: 'mix', defaultValue: 0.0, minValue: 0.0, maxValue: 1.0, automationRate: 'k-rate' },
-      { name: 'rate', defaultValue: 0.25, minValue: 0.0, maxValue: 1.0, automationRate: 'k-rate' },
-      { name: 'crush', defaultValue: 0.0, minValue: 0.0, maxValue: 1.0, automationRate: 'k-rate' },
-      { name: 'down', defaultValue: 1.0, minValue: 1.0, maxValue: 24.0, automationRate: 'k-rate' },
-      { name: 'drop', defaultValue: 0.0, minValue: 0.0, maxValue: 1.0, automationRate: 'k-rate' },
-      { name: 'stut', defaultValue: 0.10, minValue: 0.0, maxValue: 1.0, automationRate: 'k-rate' },
-      { name: 'stutLen', defaultValue: 0.12, minValue: 0.02, maxValue: 0.35, automationRate: 'k-rate' }
-    ];
   }
 
-  constructor() {
-    super();
-    this._ringSize = Math.max(4096, Math.floor(sampleRate * 1.0)); // 1s ring
-    this._ringL = new Float32Array(this._ringSize);
-    this._ringR = new Float32Array(this._ringSize);
-    this._ringIdx = 0;
+  // ---------- State ----------
+  const CATS = ["KICK","SNARE","HAT","CLAP","BASS","PERC/FX"];
+  const STEPS = 16;
+  const ROWS = CATS.length;
 
-    this._holdL = 0;
-    this._holdR = 0;
-    this._downCount = 0;
+  const state = {
+    files: [], // {id,name,file,buffer,category,autoCategory,features,override:boolean}
+    selectedFileIndex: -1,
+    pattern: Array.from({length: ROWS}, () => Array.from({length: STEPS}, () => 0)), // 0 empty,1 ghost,2 hit,3 accent
+    bpm: 170,
+    isPlaying: false,
+    viewMode: "follow",
+    scheduler: null,
+    nextNoteTime: 0,
+    currentStep: 0,
+    lookaheadMs: 25,
+    scheduleAhead: 0.12,
+    activeSources: new Set(),
+    previewSource: null,
+    previewGain: null,
+    record: {
+      rec: null,
+      chunks: [],
+      isRecording: false,
+      streamDest: null
+    },
+    debug: {
+      on:false,
+      lines: []
+    }
+  };
 
-    this._stutterRemaining = 0;
-    this._stutterLenSamples = Math.floor(sampleRate * 0.12);
-    this._stutterReadIdx = 0;
+  // ---------- Audio ----------
+  let audioCtx = null;
+  let master = null;
+  let analyser = null;
+
+  async function ensureAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({latencyHint:"interactive"});
+    master = audioCtx.createGain();
+    master.gain.value = 0.85;
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    master.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    $("audioState").textContent = "audio: " + audioCtx.state;
+    audioCtx.onstatechange = () => $("audioState").textContent = "audio: " + audioCtx.state;
   }
 
-  _wrap(i) {
-    const n = this._ringSize;
-    i %= n;
-    return i < 0 ? i + n : i;
-  }
-
-  process(inputs, outputs, params) {
-    const input = inputs[0];
-    const output = outputs[0];
-    if (!input || input.length === 0) return true;
-
-    const inL = input[0];
-    const inR = input[1] || input[0];
-    const outL = output[0];
-    const outR = output[1] || output[0];
-
-    const mix = (params.mix.length ? params.mix[0] : 0);
-    const rate = (params.rate.length ? params.rate[0] : 0);
-    const crush = (params.crush.length ? params.crush[0] : 0);
-    const down = Math.max(1, Math.round(params.down.length ? params.down[0] : 1));
-    const drop = (params.drop.length ? params.drop[0] : 0);
-    const stut = (params.stut.length ? params.stut[0] : 0);
-    const stutLen = (params.stutLen.length ? params.stutLen[0] : 0.12);
-
-    const n = outL.length;
-
-    // update stutter length (ms -> samples) each block
-    this._stutterLenSamples = Math.max(64, Math.min(this._ringSize - 1, Math.floor(sampleRate * stutLen)));
-
-    // stutter trigger at block boundary
-    if (this._stutterRemaining <= 0) {
-      const p = stut * rate * 0.30; // conservative
-      if (p > 0 && Math.random() < p) {
-        this._stutterRemaining = this._stutterLenSamples;
-        this._stutterReadIdx = this._wrap(this._ringIdx - this._stutterLenSamples);
-      }
+  function killAllSources(){
+    for (const s of state.activeSources){
+      try{ s.stop(); }catch(e){}
     }
-
-    // bit depth
-    const bit = Math.max(4, Math.min(16, Math.round(16 - crush * 12)));
-    const step = Math.pow(2, -(bit - 1)); // ~1/2^(bit-1)
-
-    for (let i = 0; i < n; i++) {
-      const xL = inL[i] || 0;
-      const xR = inR[i] || 0;
-
-      // write ring
-      this._ringL[this._ringIdx] = xL;
-      this._ringR[this._ringIdx] = xR;
-      this._ringIdx = (this._ringIdx + 1) % this._ringSize;
-
-      let yL = xL;
-      let yR = xR;
-
-      // stutter playback
-      if (this._stutterRemaining > 0) {
-        yL = this._ringL[this._stutterReadIdx];
-        yR = this._ringR[this._stutterReadIdx];
-        this._stutterReadIdx = (this._stutterReadIdx + 1) % this._ringSize;
-        this._stutterRemaining--;
-      }
-
-      // downsample/hold
-      if (down > 1) {
-        if ((this._downCount % down) === 0) {
-          this._holdL = yL;
-          this._holdR = yR;
-        }
-        yL = this._holdL;
-        yR = this._holdR;
-        this._downCount++;
-      }
-
-      // bitcrush quantize
-      if (crush > 0.001) {
-        yL = Math.round(yL / step) * step;
-        yR = Math.round(yR / step) * step;
-      }
-
-      // dropout
-      const dp = drop * rate * 0.02; // conservative
-      if (dp > 0 && Math.random() < dp) {
-        yL = 0;
-        yR = 0;
-      }
-
-      // mix
-      outL[i] = (1 - mix) * xL + mix * yL;
-      outR[i] = (1 - mix) * xR + mix * yR;
-    }
-
-    return true;
-  }
-}
-
-registerProcessor('glitch-processor', GlitchProcessor);
-  `;
-
-// ====== Audio Engine ======
-  class AudioEngine{
-    constructor(logger){
-      this.logger = logger;
-      this.ctx = null;
-      this.master = null;
-      this.limiter = null;
-      this.isRunning = false;
-      this.schedTimer = null;
-      this.lookaheadMs = 25;
-      this.scheduleAhead = 0.22;
-      this.nextNoteTime = 0;
-      this.stepIndex = 0;
-      this.pattern = null;   // {rows:[{name, bus, steps:[0..3], muted, sampleIds:[] }], bars, stepsPerBar=16}
-      this.onStep = null;
-      this.busGains = new Map();
-      this.activeSources = new Set();
-      this.maxConcurrent = 48;  // avoid runaway
-    }
-
-    async ensure(){
-      if (!this.ctx){
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (!Ctx) throw new Error('Web Audio API not available in this browser.');
-        this.ctx = new Ctx({latencyHint:'interactive'});
-        this.master = this.ctx.createGain();
-        this.master.gain.value = 0.85;
-
-        // --- EQ (3-band) ---
-        this.eqLow = this.ctx.createBiquadFilter();
-        this.eqLow.type = 'lowshelf';
-        this.eqLow.frequency.value = 180;
-        this.eqLow.gain.value = 0;
-
-        this.eqMid = this.ctx.createBiquadFilter();
-        this.eqMid.type = 'peaking';
-        this.eqMid.frequency.value = 1200;
-        this.eqMid.Q.value = 0.9;
-        this.eqMid.gain.value = 0;
-
-        this.eqHigh = this.ctx.createBiquadFilter();
-        this.eqHigh.type = 'highshelf';
-        this.eqHigh.frequency.value = 6500;
-        this.eqHigh.gain.value = 0;
-
-        // Output trim (post-EQ, pre-limiter)
-        this.outGain = this.ctx.createGain();
-        this.outGain.gain.value = 1.0;
-
-        // --- GLITCH (wet/dry) ---
-        this.dryGain = this.ctx.createGain();
-        this.wetGain = this.ctx.createGain();
-        this.dryGain.gain.value = 1.0;
-        this.wetGain.gain.value = 0.0;
-
-        this.glitchNode = null;
-        this._workletLoaded = false;
-
-
-        // Gentle "limiter": compressor.
-        const comp = this.ctx.createDynamicsCompressor();
-        comp.threshold.value = -10;
-        comp.knee.value = 20;
-        comp.ratio.value = 8;
-        comp.attack.value = 0.003;
-        comp.release.value = 0.12;
-
-        // Build routing:
-        // sources -> master -> EQ -> split dry/wet -> (wet -> glitch) -> sum -> outGain -> limiter -> destination
-        this.master.connect(this.eqLow);
-        this.eqLow.connect(this.eqMid);
-        this.eqMid.connect(this.eqHigh);
-
-        // dry path
-        this.eqHigh.connect(this.dryGain);
-
-        // wet path (glitch worklet, created lazily in ensure())
-        this.eqHigh.connect(this.wetGain);
-
-        // sum
-        this.sumGain = this.ctx.createGain();
-        this.dryGain.connect(this.sumGain);
-
-        // placeholder: wetGain will connect to glitchNode when available; otherwise directly to sumGain
-        this.wetGain.connect(this.sumGain);
-
-        // Post filter (for jungle/dnb sweeps)
-        this.postFilter = this.ctx.createBiquadFilter();
-        this.postFilter.type = 'lowpass';
-        this.postFilter.frequency.value = 18000;
-        this.postFilter.Q.value = 0.7;
-
-        // Tempo delay (send/return) + feedback filter
-        this.delaySend = this.ctx.createGain();
-        this.delaySend.gain.value = 0.0;
-        this.delay = this.ctx.createDelay(2.0);
-        this.delay.delayTime.value = 0.125;
-        this.delayFb = this.ctx.createGain();
-        this.delayFb.gain.value = 0.0;
-        this.delayCut = this.ctx.createBiquadFilter();
-        this.delayCut.type = 'lowpass';
-        this.delayCut.frequency.value = 5000;
-        this.delayCut.Q.value = 0.7;
-        this.delayReturn = this.ctx.createGain();
-        this.delayReturn.gain.value = 0.0;
-
-        // Wire delay loop
-        this.sumGain.connect(this.delaySend);
-        this.delaySend.connect(this.delay);
-        this.delay.connect(this.delayCut);
-        this.delayCut.connect(this.delayReturn);
-        this.delayReturn.connect(this.postFilter);
-        // feedback
-        this.delayCut.connect(this.delayFb);
-        this.delayFb.connect(this.delay);
-
-        // Main path
-        this.sumGain.connect(this.postFilter);
-        this.postFilter.connect(this.outGain).connect(comp).connect(this.ctx.destination);
-        
-        this.limiter = comp;
-        this.logger.log(`AudioContext created. state=${this.ctx.state}, sr=${this.ctx.sampleRate}`);
-        // Load glitch worklet (blob) once per AudioContext
-        if (this.ctx.audioWorklet && !this._workletLoaded){
-          try{
-            const blob = new Blob([GLITCH_WORKLET_CODE], {type:'application/javascript'});
-            const url = URL.createObjectURL(blob);
-            await this.ctx.audioWorklet.addModule(url);
-            URL.revokeObjectURL(url);
-            this._workletLoaded = true;
-
-            // Create glitch node and rewire wet path:
-            // wetGain -> glitch -> sumGain (disconnect direct wet->sum first)
-            try{ this.wetGain.disconnect(); }catch{}
-            this.glitchNode = new AudioWorkletNode(this.ctx, 'glitch-processor', {
-              numberOfInputs: 1,
-              numberOfOutputs: 1,
-              outputChannelCount: [2],
-              parameterData: {
-                mix: 0.0,
-                rate: 0.25,
-                crush: 0.0,
-                down: 1.0,
-                drop: 0.0,
-                stut: 0.10,
-                stutLen: 0.12
-              }
-            });
-            this.wetGain.connect(this.glitchNode).connect(this.sumGain);
-            this.logger.log('Glitch worklet loaded.');
-          }catch(e){
-            this.logger.log(`Glitch worklet load failed: ${e?.message || e}`, 'WARN');
-            // fallback: wet path directly into sumGain
-            try{ this.wetGain.disconnect(); }catch{}
-            this.wetGain.connect(this.sumGain);
-          }
-        }
-
-      }
-      if (this.ctx.state !== 'running'){
-        await this.ctx.resume();
-        this.logger.log(`AudioContext resumed. state=${this.ctx.state}`);
-      }
-      return this.ctx;
-    }
-
-    async decodeFile(file){
-      const ctx = await this.ensure();
-      const ab = await file.arrayBuffer();
-      // decodeAudioData may reject with DataCloneError in some cases; wrap for safety.
-      const buf = await new Promise((resolve, reject) => {
-        ctx.decodeAudioData(ab.slice(0), resolve, reject);
-      });
-      return buf;
-    }
-
-    stopAllSources(){
-      for (const s of this.activeSources){
-        try{ s.stop(0); }catch{}
-      }
-      this.activeSources.clear();
-    }
-
-    async panic(){
-      if (!this.ctx) return;
-      this.logger.log('Audio PANIC: stopping scheduler and all sources.', 'WARN');
-      this.stop();
-      this.stopAllSources();
-      try{
-        await this.ctx.close();
-      }catch{}
-      this.ctx = null;
-      this.master = null;
-      this.limiter = null;
-    }
-
-    setPattern(pattern){
-      this.pattern = pattern;
-      this.stepIndex = 0;
-      this.nextNoteTime = 0;
-    }
-
-
-    setEQ({enabled, lowDb, midDb, highDb, midFreq, outDb}){
-      if (!this.ctx) return;
-      const en = !!enabled;
-      // Neutral when off
-      this.eqLow.gain.setTargetAtTime(en ? lowDb : 0, this.ctx.currentTime, 0.015);
-      this.eqMid.gain.setTargetAtTime(en ? midDb : 0, this.ctx.currentTime, 0.015);
-      this.eqHigh.gain.setTargetAtTime(en ? highDb : 0, this.ctx.currentTime, 0.015);
-      if (midFreq){
-        this.eqMid.frequency.setTargetAtTime(midFreq, this.ctx.currentTime, 0.02);
-      }
-      const outGain = Math.pow(10, (outDb || 0) / 20);
-      this.outGain.gain.setTargetAtTime(outGain, this.ctx.currentTime, 0.02);
-    }
-
-    setGlitch({enabled, mix, rate, stut, stutLenSec, crush, down, drop}){
-      if (!this.ctx) return;
-      const en = !!enabled;
-      const m = en ? mix : 0.0;
-
-      // Wet/dry
-      this.dryGain.gain.setTargetAtTime(1.0 - m, this.ctx.currentTime, 0.02);
-      this.wetGain.gain.setTargetAtTime(m, this.ctx.currentTime, 0.02);
-
-      // Worklet params (if loaded)
-      if (this.glitchNode && this.glitchNode.parameters){
-        const p = this.glitchNode.parameters;
-        if (p.get('mix')) p.get('mix').setValueAtTime(m, this.ctx.currentTime);
-        if (p.get('rate')) p.get('rate').setValueAtTime(rate, this.ctx.currentTime);
-        if (p.get('stut')) p.get('stut').setValueAtTime(stut, this.ctx.currentTime);
-        if (p.get('stutLen')) p.get('stutLen').setValueAtTime(stutLenSec, this.ctx.currentTime);
-        if (p.get('crush')) p.get('crush').setValueAtTime(crush, this.ctx.currentTime);
-        if (p.get('down')) p.get('down').setValueAtTime(down, this.ctx.currentTime);
-        if (p.get('drop')) p.get('drop').setValueAtTime(drop, this.ctx.currentTime);
-      }
-    }
-    setBreakFX({lpfHz, delayTimeSec, delaySend, delayFb, delayCutHz}){
-      if (!this.ctx) return;
-      if (this.postFilter){
-        this.postFilter.frequency.setTargetAtTime(clamp(lpfHz || 18000, 200, 20000), this.ctx.currentTime, 0.02);
-      }
-      if (this.delay){
-        this.delay.delayTime.setTargetAtTime(clamp(delayTimeSec || 0.125, 0.01, 1.5), this.ctx.currentTime, 0.02);
-      }
-      if (this.delaySend){
-        this.delaySend.gain.setTargetAtTime(clamp(delaySend || 0, 0, 1), this.ctx.currentTime, 0.03);
-      }
-      if (this.delayFb){
-        this.delayFb.gain.setTargetAtTime(clamp(delayFb || 0, 0, 0.95), this.ctx.currentTime, 0.03);
-      }
-      if (this.delayCut){
-        this.delayCut.frequency.setTargetAtTime(clamp(delayCutHz || 5000, 200, 20000), this.ctx.currentTime, 0.03);
-      }
-      if (this.delayReturn){
-        this.delayReturn.gain.setTargetAtTime(clamp((delaySend || 0) * 0.9, 0, 0.9), this.ctx.currentTime, 0.03);
-      }
-    }
-
-
-
-    // schedule: stepDuration = 60/BPM/4 (16th notes)
-    start(getEventAtStep, getBpm, getSwingPercent){
-      if (!this.pattern) throw new Error('No pattern set.');
-      if (this.isRunning) return;
-      const stepsPerBar = 16;
-      const totalSteps = this.pattern.bars * stepsPerBar;
-
-      this.isRunning = true;
-      this.logger.log('PLAY: scheduler start.');
-      const ctx = this.ctx;
-      this.nextNoteTime = ctx.currentTime + 0.05;
-      this.stepIndex = 0;
-
-      const stepDur = () => (60 / clamp(getBpm(), 40, 260)) / 4;
-
-      const scheduleStep = (step, time) => {
-        const evt = getEventAtStep(step);
-        if (!evt) return;
-        for (const hit of evt){
-          if (!hit || hit.muted) continue;
-          this.trigger(hit, time);
-        }
-      };
-
-      const scheduler = () => {
-        if (!this.isRunning) return;
-        const t = this.ctx.currentTime;
-        while (this.nextNoteTime < t + this.scheduleAhead){
-          const s = this.stepIndex % totalSteps;
-          scheduleStep(s, this.nextNoteTime);
-          if (this.onStep) this.onStep(s);
-
-          // swing: delay odd steps
-          const odd = (s % 2) === 1;
-          const base = stepDur();
-          const swing = clamp(getSwingPercent()/100, 0, 0.75);
-          const swingDelay = odd ? base * swing : 0;
-          this.nextNoteTime += base + swingDelay;
-          this.stepIndex++;
-        }
-      };
-
-      this.schedTimer = setInterval(scheduler, this.lookaheadMs);
-    }
-
-    stop(){
-      if (!this.isRunning) return;
-      this.isRunning = false;
-      if (this.schedTimer){
-        clearInterval(this.schedTimer);
-        this.schedTimer = null;
-      }
-      this.stopAllSources();
-      this.logger.log('STOP: scheduler stopped.');
-    }
-
-    trigger(hit, time){
-      // hit: {buffer, gain, pan, accentLevel, label}
-      if (!this.ctx || !this.master) return;
-      if (!hit.buffer) return;
-
-      // safety: cap concurrent nodes
-      if (this.activeSources.size >= this.maxConcurrent){
-        // drop lowest-importance hits (ghost first)
-        if (hit.accentLevel <= 1) return;
-      }
-
-      const src = this.ctx.createBufferSource();
-      src.buffer = hit.buffer;
-
-      const g = this.ctx.createGain();
-      g.gain.value = hit.gain;
-
-      const p = (this.ctx.createStereoPanner) ? this.ctx.createStereoPanner() : null;
-      if (p) p.pan.value = hit.pan;
-
-      if (p){
-        src.connect(g).connect(p).connect(this.master);
-      }else{
-        src.connect(g).connect(this.master);
-      }
-
-      src.start(time);
-      this.activeSources.add(src);
-      src.onended = () => this.activeSources.delete(src);
+    state.activeSources.clear();
+    if (state.previewSource){
+      try{ state.previewSource.stop(); }catch(e){}
+      state.previewSource = null;
     }
   }
 
-  // ====== Transient Analysis (fast, no FFT) ======
-  function analyzeBufferFast(audioBuffer){
-    // Downmix to mono, decimate for speed.
-    const sr = audioBuffer.sampleRate;
-    const ch = audioBuffer.numberOfChannels;
-    const len = audioBuffer.length;
+  function safeStopSource(src, when=0){
+    try{ src.stop(when); }catch(e){}
+  }
 
-    const targetSR = 11025;
-    const dec = Math.max(1, Math.floor(sr / targetSR));
-    const N = Math.floor(len / dec);
+  // ---------- File decoding + analysis ----------
+  async function decodeFile(file){
+    await ensureAudio();
+    const arr = await file.arrayBuffer();
+    // Copy buffer to detach from file; decodeAudioData on some browsers consumes the arraybuffer.
+    const copy = arr.slice(0);
+    const buf = await audioCtx.decodeAudioData(copy);
+    return buf;
+  }
 
-    let x = new Float32Array(N);
-    for (let i=0, j=0; j<N; j++, i+=dec){
-      let s = 0;
-      for (let c=0; c<ch; c++){
-        s += audioBuffer.getChannelData(c)[i] || 0;
-      }
-      x[j] = s / ch;
-    }
+  // Cheap transient-ish + timbre features (fast, stable)
+  function extractFeatures(buffer){
+    const ch = buffer.getChannelData(0);
+    const sr = buffer.sampleRate;
+    const N = ch.length;
 
-    const dur = audioBuffer.duration;
+    // windowed energy (rough onset strength)
+    const hop = 256;
+    const win = 1024;
+    let prevE = 0;
+    let maxFlux = 0;
+    let fluxSum = 0;
+    let count = 0;
 
-    // Simple lowpass for low band.
-    const fc = 200;
-    const w = 2*Math.PI*fc/targetSR;
-    const a = w / (w + 1);
-    let lp = 0;
-
-    let sumSq = 0, sumLpSq = 0, sumHpSq = 0;
-    let peak = 0;
+    // zero crossing and lowfreq energy proxy
     let zc = 0;
-    let prev = x[0] || 0;
-    let prevSign = prev >= 0 ? 1 : -1;
-
-    // Envelope for transients
-    let env = 0;
-    const envA = 0.02; // fast attack
-    const envR = 0.004; // release
-    let maxDiff = 0;
-    let prevEnv = 0;
-
-    // peak counting
-    const diffs = new Float32Array(N);
     for (let i=1;i<N;i++){
-      const s = x[i];
-      const abs = Math.abs(s);
-      peak = Math.max(peak, abs);
-
-      // zcr
-      const sign = s >= 0 ? 1 : -1;
-      if (sign !== prevSign) zc++;
-      prevSign = sign;
-
-      // lowpass
-      lp = lp + a*(s - lp);
-      const hp = s - lp;
-
-      sumSq += s*s;
-      sumLpSq += lp*lp;
-      sumHpSq += hp*hp;
-
-      // envelope
-      const target = abs;
-      const coef = (target > env) ? envA : envR;
-      env = env + coef*(target - env);
-      const d = env - prevEnv;
-      diffs[i] = d;
-      if (d > maxDiff) maxDiff = d;
-      prevEnv = env;
-
-      prev = s;
+      if ((ch[i-1] >= 0 && ch[i] < 0) || (ch[i-1] < 0 && ch[i] >= 0)) zc++;
     }
+    const zcr = zc / N;
 
-    const rms = Math.sqrt(sumSq / Math.max(1, N));
-    const lpRms = Math.sqrt(sumLpSq / Math.max(1, N));
-    const hpRms = Math.sqrt(sumHpSq / Math.max(1, N));
-    const zcr = zc / Math.max(1, N);
-
-    // Count peaks in diff envelope
-    const thresh = Math.max(0.0006, maxDiff * 0.23);
-    let peaks = 0;
-    for (let i=2;i<N-2;i++){
-      const v = diffs[i];
-      if (v > thresh && v > diffs[i-1] && v >= diffs[i+1]) peaks++;
+    // Simple spectral centroid approximation via FFT on first 4096 samples (or less)
+    const fftN = Math.min(4096, N);
+    const frame = new Float32Array(fftN);
+    for (let i=0;i<fftN;i++) frame[i] = ch[i] * (0.5 - 0.5*Math.cos(2*Math.PI*i/(fftN-1)));
+    // Real FFT magnitude (naive DFT for stability; small N only)
+    const bins = 128; // coarse
+    let centroid = 0, magSum = 0;
+    for (let k=0;k<bins;k++){
+      const w = 2*Math.PI*k/fftN;
+      let re=0, im=0;
+      for (let n=0;n<fftN;n++){
+        const ang = w*n;
+        re += frame[n] * Math.cos(ang);
+        im -= frame[n] * Math.sin(ang);
+      }
+      const mag = Math.sqrt(re*re + im*im);
+      const freq = (k*sr)/fftN;
+      centroid += freq * mag;
+      magSum += mag;
     }
+    centroid = magSum > 1e-9 ? centroid / magSum : 0;
+    const centroidNorm = centroid / (sr/2);
 
-    const bandRatio = hpRms / (lpRms + 1e-9);
+    // onset flux over first ~1s (or shorter)
+    const maxSamples = Math.min(N, sr); // 1 sec
+    for (let i=0; i+win < maxSamples; i+=hop){
+      let e=0;
+      for (let j=0;j<win;j++){
+        const v = ch[i+j];
+        e += v*v;
+      }
+      const flux = Math.max(0, e - prevE);
+      prevE = e;
+      maxFlux = Math.max(maxFlux, flux);
+      fluxSum += flux;
+      count++;
+    }
+    const fluxMean = count ? (fluxSum / count) : 0;
 
-    // "Punch" score
-    const punch = clamp((maxDiff*2500) + (peak*1.2) + (rms*0.8), 0, 999);
+    // low frequency ratio via single-pole lowpass
+    let lp=0;
+    const a = Math.exp(-2*Math.PI*160/sr);
+    let lowE=0, totE=0;
+    for (let i=0;i<Math.min(N, sr*0.5);i++){ // first 0.5s
+      lp = a*lp + (1-a)*ch[i];
+      lowE += lp*lp;
+      totE += ch[i]*ch[i];
+    }
+    const lowRatio = totE>1e-9 ? (lowE/totE) : 0;
 
-    return {
-      dur, rms, peak, lpRms, hpRms, zcr, bandRatio,
-      transientMax: maxDiff,
-      transientCount: peaks,
-      punch
-    };
+    // attack time: time until RMS crosses 60% of peak RMS in first 200ms
+    const atkWin = Math.min(N, Math.floor(sr*0.2));
+    let peak=0;
+    for (let i=0;i<atkWin;i++) peak = Math.max(peak, Math.abs(ch[i]));
+    const thresh = peak * 0.6;
+    let atkSamp = atkWin;
+    for (let i=0;i<atkWin;i++){
+      if (Math.abs(ch[i]) >= thresh){ atkSamp=i; break; }
+    }
+    const attack = atkSamp / sr; // seconds
+
+    return { zcr, centroidNorm, fluxMean, maxFlux, lowRatio, attack };
   }
 
   function classify(features){
-    const {dur, lpRms, hpRms, zcr, bandRatio, transientMax, transientCount} = features;
+    // Heuristics tuned for drum one-shots:
+    const {zcr, centroidNorm, fluxMean, lowRatio, attack} = features;
 
-    // Heuristic gates
-    const isShort = dur < 0.7;
-    const isVeryShort = dur < 0.35;
-    const lowHeavy = lpRms > hpRms * 1.8;
-    const highHeavy = hpRms > lpRms * 2.2;
-    const noisy = zcr > 0.08;
-    const strongTransient = transientMax > 0.0009;
+    // hats: high centroid, high zcr, low lowRatio
+    if (centroidNorm > 0.55 && zcr > 0.12 && lowRatio < 0.35) return "HAT";
 
-    if (dur > 1.0 && lowHeavy && !noisy) return 'BASS';
-    if (lowHeavy && strongTransient && isShort) return 'KICK';
-    if (highHeavy && noisy && isVeryShort) return 'HAT';
-    if (!lowHeavy && !highHeavy && strongTransient && isShort){
-      if (transientCount >= 3 && dur < 0.6) return 'CLAP';
-      return 'SNARE';
-    }
-    if (highHeavy && strongTransient && isShort) return 'HAT';
-    if (dur > 1.4) return 'FX';
-    return 'PERC';
-  }
+    // kicks/bass: high lowRatio, low centroid
+    if (lowRatio > 0.68 && centroidNorm < 0.30) return (attack < 0.015 ? "KICK" : "BASS");
 
-  // ====== Pattern generator ("memory": anchor + variation) ======
-  function seededRng(seed){
-    let s = seed >>> 0;
-    return () => {
-      // xorshift32
-      s ^= s << 13; s >>>= 0;
-      s ^= s >> 17; s >>>= 0;
-      s ^= s << 5;  s >>>= 0;
-      return (s >>> 0) / 4294967296;
-    };
-  }
-
-  function makeEmptyPattern(bars){
-    const rows = [
-      {name:'KICK', bus:'KICK', muted:false, steps:[], sampleIds:[]},
-      {name:'SNARE', bus:'SNARE', muted:false, steps:[], sampleIds:[]},
-      {name:'HAT', bus:'HAT', muted:false, steps:[], sampleIds:[]},
-      {name:'CLAP', bus:'CLAP', muted:false, steps:[], sampleIds:[]},
-      {name:'BASS', bus:'BASS', muted:false, steps:[], sampleIds:[]},
-      {name:'PERC/FX', bus:'PERC', muted:false, steps:[], sampleIds:[]},
-    ];
-    const total = bars * 16;
-    for (const r of rows) r.steps = new Array(total).fill(0); // 0 empty, 1 ghost, 2 hit, 3 accent
-    return {bars, rows, stepsPerBar:16};
-  }
-
-  function genPattern(pattern, knobs, rng, groove){
-    const {complexity, variation} = knobs;
-    const C = clamp(complexity/100, 0, 1);
-    const V = clamp(variation/100, 0, 1);
-
-    const bars = pattern.bars;
-    const total = bars * 16;
-
-    // Clear
-    for (const r of pattern.rows){
-      r.steps.fill(0);
+    // snares/claps: mid centroid, mid zcr, moderate lowRatio
+    if (centroidNorm > 0.30 && centroidNorm < 0.55){
+      if (zcr > 0.10 && attack < 0.02) return "CLAP";
+      return "SNARE";
     }
 
-    const put = (rowName, step, val) => {
-      const r = pattern.rows.find(x => x.bus === rowName || x.name === rowName);
-      if (!r) return;
-      if (step < 0 || step >= total) return;
-      r.steps[step] = Math.max(r.steps[step], val);
-    };
-
-    // Anchors (stable motifs)
-    // Base layer by groove
-    if (!groove) groove = 'straight';
-
-    const writeBreakTemplate = (o) => {
-      // Amen-ish 1 bar template at 16th resolution, values are accent levels (1..3)
-      // KICK
-      put('KICK', o+0, 3);
-      if (rng() < 0.55) put('KICK', o+6, 2);
-      put('KICK', o+10, (rng() < 0.5 ? 2 : 3));
-      if (rng() < 0.65) put('KICK', o+14, 2);
-
-      // SNARE on 2&4, plus ghosts
-      put('SNARE', o+4, 3);
-      put('SNARE', o+12, 3);
-      if (rng() < 0.45) put('SNARE', o+11, 1);
-      if (rng() < 0.30) put('SNARE', o+15, 1);
-
-      // HAT: 16ths with accent on offbeats
-      for (let s=0;s<16;s++) {
-        if (rng() < (0.55 + 0.25*C)) put('HAT', o+s, ((s%2===1 && rng()<0.55) ? 2 : 1));
-      }
-
-      // PERC / FX
-      const hits = [3,7,9,13];
-      for (const p of hits) {
-        if (rng() < (0.18 + 0.22*C)) put('PERC', o+p, (rng()<0.35 ? 1 : 2));
-      }
-      if (rng() < (0.08 + 0.18*C)) put('FX', o+8, 1);
-    };
-
-    const writeJungleTemplate = (o) => {
-      // Jungle: dense hats + ghost snares + sync kicks
-      put('SNARE', o+4, 3);
-      put('SNARE', o+12, 3);
-      if (rng() < 0.65) put('SNARE', o+11, 1);
-      if (rng() < 0.55) put('SNARE', o+15, 1);
-
-      put('KICK', o+0, 3);
-      if (rng() < 0.70) put('KICK', o+9, 2);
-      if (rng() < 0.55) put('KICK', o+10, 2);
-      if (rng() < 0.45) put('KICK', o+14, 2);
-
-      // rolling hats
-      for (let s=0;s<16;s++) {
-        const base = 0.70 + 0.25*C;
-        if (rng() < base) {
-          let v = 1;
-          if (s%4===2 && rng()<0.60) v = 2;
-          if (s%8===7 && rng()<0.35) v = 3;
-          put('HAT', o+s, v);
-        }
-      }
-
-      // clap on some snares
-      if (rng() < 0.55) put('CLAP', o+12, 2);
-      if (rng() < 0.25) put('CLAP', o+4, 1);
-
-      // perc fills
-      const fills = [2,3,6,7,10,13,14,15];
-      for (const p of fills) {
-        if (rng() < (0.15 + 0.30*C)) put('PERC', o+p, (rng()<0.3 ? 1 : 2));
-      }
-      if (rng() < (0.10 + 0.20*C)) put('FX', o+15, 1);
-    };
-
-    const writeDnbTemplate = (o) => {
-      // DnB: punchy kick+snare, 16th hats, occasional rolls
-      put('KICK', o+0, 3);
-      if (rng() < 0.75) put('KICK', o+10, 2);
-      if (rng() < 0.40) put('KICK', o+14, 1);
-
-      put('SNARE', o+4, 3);
-      put('SNARE', o+12, 3);
-
-      // hats
-      for (let s=0;s<16;s++) {
-        if (rng() < (0.55 + 0.20*C)) {
-          let v = ((s%2===1 && rng()<0.45) ? 2 : 1);
-          put('HAT', o+s, v);
-        }
-      }
-
-      // bass impulses
-      if (rng() < (0.35 + 0.25*C)) put('BASS', o+0, 2);
-      if (rng() < (0.30 + 0.30*C)) put('BASS', o+8, 1);
-      if (rng() < (0.25 + 0.20*C)) put('BASS', o+12, 1);
-
-      // snare roll near end
-      if (rng() < (0.12 + 0.25*C)) {
-        put('SNARE', o+14, 1);
-        put('SNARE', o+15, 1);
-      }
-      if (rng() < (0.10 + 0.18*C)) put('FX', o+15, 1);
-    };
-
-    if (groove === 'break'){
-      for (let b=0;b<bars;b++){
-        const o = b*16;
-        writeBreakTemplate(o);
-      }
-    } else if (groove === 'jungle'){
-      for (let b=0;b<bars;b++){
-        const o = b*16;
-        writeJungleTemplate(o);
-      }
-    } else if (groove === 'dnb'){
-      for (let b=0;b<bars;b++){
-        const o = b*16;
-        writeDnbTemplate(o);
-      }
-    } else {
-for (let b=0;b<bars;b++){
-      const o = b*16;
-      // Kick: 1 and 3, plus occasional pickup
-      put('KICK', o+0, 3);
-      put('KICK', o+8, 2);
-      if (rng() < 0.55*C) put('KICK', o+11, 2);
-
-      // Snare: 2 and 4
-      put('SNARE', o+4, 3);
-      put('SNARE', o+12, 3);
-      if (rng() < 0.40*C) put('SNARE', o+15, 1);
-
-      // Hat: 8ths base
-      for (const s of [0,2,4,6,8,10,12,14]){
-        put('HAT', o+s, 2);
-      }
-      // accents on offbeats depending on V
-      if (rng() < 0.7) put('HAT', o+2, 3);
-      if (rng() < 0.7) put('HAT', o+10, 3);
-      if (rng() < 0.25 + 0.5*V) put('HAT', o+15, 1);
-
-      // Clap: optional, syncopation
-      if (rng() < 0.25 + 0.35*C) put('CLAP', o+12, 2);
-
-      // Bass: sparse anchor, more when complex
-      if (rng() < 0.55*C) put('BASS', o+0, 2);
-      if (rng() < 0.35*C) put('BASS', o+10, 2);
-      if (rng() < 0.25*C) put('BASS', o+14, 1);
-
-      // Perc: sprinkle with memory (repeatable positions)
-      const percPos = [3,7,9,13,15];
-      for (const p of percPos){
-        if (rng() < (0.10 + 0.22*C)) put('PERC', o+p, rng()<0.35 ? 1 : 2);
-      }
-    }
-
-    
-    }
-// Variation layer (controlled randomness)
-    const varyRow = (bus, prob, accentProb) => {
-      const r = pattern.rows.find(x => x.bus === bus || x.name === bus);
-      if (!r) return;
-      for (let i=0;i<total;i++){
-        if (r.steps[i] === 0 && rng() < prob){
-          r.steps[i] = (rng() < accentProb) ? 3 : 2;
-        } else if (r.steps[i] >= 2 && rng() < (0.06 + 0.14*V)){
-          // occasional removal for air
-          r.steps[i] = (rng() < 0.5) ? 1 : 0;
-        }
-      }
-    };
-
-    varyRow('KICK', 0.03 + 0.08*C, 0.25);
-    varyRow('SNARE', 0.02 + 0.06*C, 0.18);
-    varyRow('HAT', 0.05 + 0.25*C, 0.14);
-    varyRow('CLAP', 0.02 + 0.10*C, 0.22);
-    varyRow('BASS', 0.02 + 0.10*C, 0.12);
-    varyRow('PERC', 0.05 + 0.22*C, 0.18);
-
-    return pattern;
+    // fallback
+    return "PERC/FX";
   }
 
-  // ====== App State ======
-  const elStatus = $('statusLine');
-  const logger = new Logger(elStatus, $('logBox'));
+  // ---------- UI rendering ----------
+  const fileListEl = $("fileList");
+  const statusLeft = $("statusLeft");
+  const statusRight = $("statusRight");
 
-  const engine = new AudioEngine(logger);
-
-  const state = {
-    files: [],          // {file, id, status, buffer?, features?, type?}
-    selectedFileId: null,
-    cursor: {row:0, step:0},
-    viewBar: 'follow', // 'follow' or '1'..'N'
-    playheadStep: 0,
-    glyphSet: 'ascii',
-    seed: null,         // number or null for auto
-    pattern: makeEmptyPattern(2),
-    busMap: { KICK:[], SNARE:[], HAT:[], CLAP:[], BASS:[], PERC:[], FX:[] },
-  };
-
-  const glyphs = {
-    ascii: {empty:'.', ghost:':', hit:'*', accent:'#'},
-    blocks:{empty:'·', ghost:'░', hit:'▒', accent:'█'},
-    dots:  {empty:'·', ghost:'∘', hit:'•', accent:'◆'},
-  };
-
-  
-  function updateViewBarOptions(){
-    const sel = $('viewBar');
-    if (!sel) return;
-    const current = String(state.viewBar);
-    sel.innerHTML = '';
-    const optFollow = document.createElement('option');
-    optFollow.value = 'follow';
-    optFollow.textContent = 'VIEW: FOLLOW';
-    sel.appendChild(optFollow);
-    for (let i=1;i<=state.pattern.bars;i++){
-      const o = document.createElement('option');
-      o.value = String(i);
-      o.textContent = `VIEW: BAR ${i}`;
-      sel.appendChild(o);
-    }
-    const values = Array.from(sel.options).map(o=>o.value);
-    state.viewBar = values.includes(current) ? current : 'follow';
-    sel.value = String(state.viewBar);
+  function setStatus(left, right=""){
+    statusLeft.textContent = left;
+    statusRight.textContent = right;
   }
 
-function updateLegend(){
-    const g = glyphs[state.glyphSet] || glyphs.ascii;
-    $('legendEmpty').textContent = g.empty;
-    $('legendGhost').textContent = g.ghost;
-    $('legendHit').textContent = g.hit;
-    $('legendAccent').textContent = g.accent;
-  }
-
-  function setMode(s){
-    $('modeLine').textContent = s;
-  }
-
-  function updateKV(){
-    $('kvFiles').textContent = String(state.files.length);
-    const decoded = state.files.filter(f => f.buffer).length;
-    const analyzed = state.files.filter(f => f.features).length;
-    $('kvDecoded').textContent = String(decoded);
-    $('kvAnalyzed').textContent = String(analyzed);
-
-    if (engine.ctx){
-      $('kvCtx').textContent = `${engine.ctx.state}@${engine.ctx.sampleRate}Hz`;
-    } else {
-      $('kvCtx').textContent = '—';
-    }
-  }
-
-  function buildStepHeader(){
-    const el = $('stepHeader');
-    el.innerHTML = '';
-    const total = state.pattern.bars * 16;
-    // we render only first bar header (16) because grid is 16 cols; bars are represented by paging in playback, not in UI.
-    // (keeping UI narrow by design)
-    const row = document.createElement('div');
-    row.className = 'h0';
-    row.textContent = 'STEP';
-    el.appendChild(row);
-    for (let i=0;i<16;i++){
-      const d = document.createElement('div');
-      d.textContent = (i===0)?'1':String(i+1);
-      el.appendChild(d);
-    }
-  }
-
-  function buildGrid(){
-    const grid = $('seqGrid');
-    grid.innerHTML = '';
-    buildStepHeader();
-
-    const g = glyphs[state.glyphSet] || glyphs.ascii;
-
-    const total = state.pattern.bars * 16;
-    // Narrow UI: show 16 steps at a time, with a VIEW bar selector.
-    // VIEW: FOLLOW = show bar containing playhead while playing, otherwise bar containing cursor.
-    let barIndex;
-    if (state.viewBar === 'follow'){
-      barIndex = engine.isRunning ? Math.floor(state.playheadStep / 16) : Math.floor(state.cursor.step / 16);
-    } else {
-      const vb = parseInt(state.viewBar, 10);
-      barIndex = isFinite(vb) ? clamp(vb-1, 0, state.pattern.bars-1) : 0;
-    }
-    const base = barIndex * 16;
-
-    const title = `Pattern: ${state.pattern.bars} bar(s) // viewing BAR ${barIndex+1}`;
-    $('seqTitle').textContent = title;
-
-    // update selection line
-    $('selLine').textContent = `${state.pattern.rows[state.cursor.row].name} @ step ${((state.cursor.step%16)+1)} (bar ${barIndex+1})`;
-
-    // Render rows
-    for (let r=0; r<state.pattern.rows.length; r++){
-      const row = state.pattern.rows[r];
-
-      const label = document.createElement('div');
-      label.className = 'rowLabel';
-      label.textContent = row.muted ? `[M] ${row.name}` : row.name;
-      grid.appendChild(label);
-
-      for (let c=0; c<16; c++){
-        const step = base + c;
-        const v = row.steps[step] || 0;
-
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.dataset.row = String(r);
-        cell.dataset.step = String(step);
-
-        let ch = g.empty;
-        if (v===1){ ch = g.ghost; cell.classList.add('ghost'); }
-        else if (v===2){ ch = g.hit; cell.classList.add('hit'); }
-        else if (v===3){ ch = g.accent; cell.classList.add('accent'); }
-        else { cell.classList.add('off'); }
-
-        cell.textContent = ch;
-
-        // cursor
-        if (state.cursor.row === r && state.cursor.step === step){
-          cell.classList.add('cursor');
-        }
-
-        cell.addEventListener('click', () => {
-          setCursor(r, step);
-          toggleHit();
-        });
-
-        cell.addEventListener('contextmenu', (e) => {
-          e.preventDefault();
-          setCursor(r, step);
-          cycleHit();
-        });
-
-        grid.appendChild(cell);
-      }
-    }
-
-    // Inspector
-    renderInspector();
-  }
-
-  function setCursor(r, step){
-    state.cursor.row = clamp(r, 0, state.pattern.rows.length-1);
-    state.cursor.step = clamp(step, 0, state.pattern.bars*16-1);
-    buildGrid();
-  }
-
-  function getCurrentRow(){
-    return state.pattern.rows[state.cursor.row];
-  }
-
-  function toggleHit(){
-    const row = getCurrentRow();
-    const i = state.cursor.step;
-    row.steps[i] = (row.steps[i] === 0) ? 2 : 0;
-    buildGrid();
-  }
-
-  function cycleHit(){
-    const row = getCurrentRow();
-    const i = state.cursor.step;
-    row.steps[i] = (row.steps[i] + 1) % 4;
-    buildGrid();
-  }
-
-  function setCell(val){
-    const row = getCurrentRow();
-    row.steps[state.cursor.step] = val;
-    buildGrid();
-  }
-
-  function toggleMuteRow(){
-    const row = getCurrentRow();
-    row.muted = !row.muted;
-    buildGrid();
-  }
-
-  // ====== Files UI ======
   function renderFileList(){
-    const el = $('fileList');
-    el.innerHTML = '';
+    fileListEl.innerHTML = "";
+    state.files.forEach((f, idx) => {
+      const row = document.createElement("div");
+      row.className = "fileitem" + (idx === state.selectedFileIndex ? " selected" : "");
+      const name = document.createElement("div");
+      name.className = "fname";
+      name.textContent = f.name;
+      name.title = "Click to preview";
+      name.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        state.selectedFileIndex = idx;
+        renderFileList();
+        await previewFile(idx);
+      });
+
+      const cat = document.createElement("div");
+      cat.className = "cat";
+      cat.textContent = f.category || "—";
+      cat.title = "Click to change class";
+      cat.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        state.selectedFileIndex = idx;
+        renderFileList();
+        openCatMenu(cat, idx);
+      });
+
+      row.appendChild(name);
+      row.appendChild(cat);
+      row.addEventListener("click", () => {
+        state.selectedFileIndex = idx;
+        renderFileList();
+      });
+
+      fileListEl.appendChild(row);
+    });
+
     if (state.files.length === 0){
-      el.textContent = 'No files loaded.';
-      return;
+      const empty = document.createElement("div");
+      empty.style.color = "var(--muted2)";
+      empty.style.fontSize = "11px";
+      empty.style.padding = "8px";
+      empty.textContent = "No files loaded yet.";
+      fileListEl.appendChild(empty);
     }
-    for (const f of state.files){
-      const div = document.createElement('div');
-      div.className = 'fileItem' + (state.selectedFileId === f.id ? ' selected':'');
-      div.tabIndex = 0;
+  }
 
-      const left = document.createElement('div');
-      left.className = 'name';
-      left.textContent = safeName(f.file);
-
-      const right = document.createElement('div');
-      let tag = '';
-      if (f.type) tag = f.type;
-      else if (f.buffer) tag = 'DECODED';
-      else tag = f.status || 'LOADED';
-      right.className = 'tag';
-      right.textContent = tag;
-
-      div.appendChild(left);
-      div.appendChild(right);
-
-      div.addEventListener('click', () => {
-        state.selectedFileId = f.id;
+  function openCatMenu(anchorEl, fileIdx){
+    // Simple in-place dropdown using a temporary select
+    const f = state.files[fileIdx];
+    const sel = document.createElement("select");
+    sel.style.width = "100%";
+    CATS.forEach(c => {
+      const op = document.createElement("option");
+      op.value = c; op.textContent = c;
+      if (c === f.category) op.selected = true;
+      sel.appendChild(op);
+    });
+    const wrap = anchorEl.parentElement;
+    const old = anchorEl;
+    wrap.replaceChild(sel, old);
+    sel.focus();
+    const commit = () => {
+      f.category = sel.value;
+      f.override = true;
+      renderFileList();
+      // Pattern rows do not auto-move; classification affects RANDOM PATTERN generation and visuals.
+      updateVisualDistribution();
+    };
+    sel.addEventListener("change", commit);
+    sel.addEventListener("blur", commit, {once:true});
+    sel.addEventListener("keydown", (e) => {
+      if (e.key === "Escape"){
+        wrap.replaceChild(old, sel);
         renderFileList();
-        renderInspector();
-      });
-
-      div.addEventListener('dblclick', async () => {
-        state.selectedFileId = f.id;
-        renderFileList();
-        await previewSelectedSample();
-      });
-
-      el.appendChild(div);
-    }
-  }
-
-  function getSelectedFile(){
-    return state.files.find(x => x.id === state.selectedFileId) || null;
-  }
-
-  function renderInspector(){
-    const sel = getSelectedFile();
-    const row = getCurrentRow();
-    const bar = Math.floor(state.cursor.step/16)+1;
-    const stepInBar = (state.cursor.step%16)+1;
-
-    let txt = '';
-    txt += `CELL: ${row.name} // bar=${bar}, step=${stepInBar}\n`;
-    txt += `HIT: ${['EMPTY','GHOST','HIT','ACCENT'][row.steps[state.cursor.step]]}\n\n`;
-
-    if (!sel){
-      txt += 'FILE: (none selected)\n';
-      txt += 'Select a file in the left list to inspect / preview.\n';
-      $('inspector').textContent = txt;
-      return;
-    }
-
-    txt += `FILE: ${safeName(sel.file)}\n`;
-    txt += `SIZE: ${sel.file.size} bytes\n`;
-    txt += `TYPE: ${sel.type || '(not analyzed)'}\n`;
-    if (sel.buffer){
-      txt += `DUR: ${fmt(sel.buffer.duration,3)} s\n`;
-      txt += `SR : ${sel.buffer.sampleRate} Hz, CH: ${sel.buffer.numberOfChannels}\n`;
-    }
-    if (sel.features){
-      const f = sel.features;
-      txt += '\nFEATURES:\n';
-      txt += `  rms=${fmt(f.rms,5)}  peak=${fmt(f.peak,5)}\n`;
-      txt += `  lpRms=${fmt(f.lpRms,5)}  hpRms=${fmt(f.hpRms,5)}  ratio=${fmt(f.bandRatio,3)}\n`;
-      txt += `  zcr=${fmt(f.zcr,4)}  transMax=${fmt(f.transientMax,6)}  transCount=${f.transientCount}\n`;
-      txt += `  punch=${fmt(f.punch,2)}\n`;
-    }
-
-    txt += '\nASSIGN:\n';
-    txt += '  Press 1..6 to force category:\n';
-    txt += '    1=KICK 2=SNARE 3=HAT 4=CLAP 5=BASS 6=PERC/FX\n';
-    txt += '  Tab cycles selected sample.\n';
-    $('inspector').textContent = txt;
-  }
-
-  // ====== Category assignment ======
-  function rebuildBusMap(){
-    state.busMap = { KICK:[], SNARE:[], HAT:[], CLAP:[], BASS:[], PERC:[], FX:[] };
-    for (const f of state.files){
-      const t = f.type || 'PERC';
-      if (t === 'FX') state.busMap.FX.push(f);
-      else if (state.busMap[t]) state.busMap[t].push(f);
-      else state.busMap.PERC.push(f);
-    }
-    // Merge FX into PERC/FX row pool
-  }
-
-  function assignSelectedType(t){
-    const sel = getSelectedFile();
-    if (!sel) return;
-    sel.type = t;
-    rebuildBusMap();
-    renderFileList();
-    renderInspector();
-    toast.show(`Assigned: ${safeName(sel.file)} -> ${t}`);
-    logger.log(`Manual assign: ${safeName(sel.file)} -> ${t}`);
-  }
-
-  function cycleSelectedSample(){
-    if (state.files.length === 0) return;
-    if (state.selectedFileId == null){
-      state.selectedFileId = state.files[0].id;
-    } else {
-      const idx = state.files.findIndex(x => x.id === state.selectedFileId);
-      const next = state.files[(idx+1) % state.files.length];
-      state.selectedFileId = next.id;
-    }
-    renderFileList();
-    renderInspector();
-  }
-
-  // ====== Preview ======
-  async function previewSelectedSample(){
-    const sel = getSelectedFile();
-    if (!sel || !sel.buffer) { toast.show('No decoded buffer to preview.'); return; }
-    try{
-      await engine.ensure();
-      applyFXFromUI();
-      const t = engine.ctx.currentTime + 0.02;
-      engine.trigger({
-        buffer: sel.buffer,
-        gain: 0.9,
-        pan: 0,
-        accentLevel: 3,
-        label: 'PREVIEW'
-      }, t);
-      toast.show('Preview: triggered.');
-    }catch(err){
-      logger.log(`Preview failed: ${err.message || err}`, 'ERR');
-      toast.show('Preview failed. See DEBUG.');
-    }
-  }
-
-  // ====== Decoding pipeline (throttled) ======
-  async function decodeAll(concurrency=2){
-    if (state.files.length === 0) return;
-    setMode('Decoding');
-    await engine.ensure();
-    applyFXFromUI();
-    updateKV();
-    let idx = 0;
-    let inFlight = 0;
-
-    return await new Promise((resolve) => {
-      const next = async () => {
-        if (idx >= state.files.length && inFlight === 0){
-          setMode('Idle');
-          updateKV();
-          renderFileList();
-          resolve(true);
-          return;
-        }
-        while (inFlight < concurrency && idx < state.files.length){
-          const item = state.files[idx++];
-          if (item.buffer){ continue; }
-
-          inFlight++;
-          item.status = 'DECODING';
-          renderFileList();
-
-          (async () => {
-            try{
-              const buf = await engine.decodeFile(item.file);
-              item.buffer = buf;
-              item.status = 'DECODED';
-              logger.log(`decodeAudioData OK: "${safeName(item.file)}" dur=${fmt(buf.duration,3)}s sr=${buf.sampleRate} ch=${buf.numberOfChannels}`);
-            }catch(err){
-              item.status = 'DECODE FAIL';
-              item.error = String(err?.message || err);
-              logger.log(`decodeAudioData FAIL: "${safeName(item.file)}" err=${item.error}`, 'ERR');
-            }finally{
-              inFlight--;
-              updateKV();
-              renderFileList();
-              next();
-            }
-          })();
-        }
-      };
-      next();
+      }
+      if (e.key === "Enter"){
+        commit();
+      }
     });
   }
 
-  // ====== Analysis ======
-  async function analyzeAll(){
-    if (state.files.length === 0) return;
-    setMode('Analyzing');
-    logger.log(`ANALYZE: start (${state.files.length} files).`);
-    await decodeAll(2);
+  // ---------- Sequencer grid ----------
+  const gridEl = $("grid");
+  const headerEl = $("stepsHeader");
 
-    let ok = 0, fail = 0;
-    for (const item of state.files){
-      if (!item.buffer){ fail++; continue; }
-      try{
-        item.features = analyzeBufferFast(item.buffer);
-        item.type = classify(item.features);
-        ok++;
-      }catch(err){
-        item.features = null;
-        item.type = null;
-        fail++;
-        logger.log(`Analyze FAIL: "${safeName(item.file)}" err=${err.message || err}`, 'ERR');
-      }
-      if ((ok+fail) % 10 === 0){
-        logger.log(`ANALYZE: progress ${ok+fail}/${state.files.length}`);
-      }
-    }
-
-    rebuildBusMap();
-    setMode('Idle');
-    updateKV();
-    renderFileList();
-    renderInspector();
-    logger.log(`ANALYZE: done ok=${ok}, fail=${fail}.`);
-    toast.show(`Analyze done. ok=${ok}, fail=${fail}`, 3000);
-  }
-
-  // ====== Auto-assign (re-run classifier only) ======
-  function autoAssign(){
-    let n = 0;
-    for (const item of state.files){
-      if (!item.features || !item.buffer) continue;
-      item.type = classify(item.features);
-      n++;
-    }
-    rebuildBusMap();
-    renderFileList();
-    renderInspector();
-    toast.show(`Auto-assign updated for ${n} file(s).`);
-    logger.log(`AUTO-ASSIGN: ${n} files.`);
-  }
-
-  // ====== Pattern ↔ sample mapping ======
-  function pickSampleForBus(bus, accentLevel, rng){
-    let pool = [];
-    if (bus === 'PERC'){
-      pool = [...state.busMap.PERC, ...state.busMap.FX];
-    } else {
-      pool = state.busMap[bus] || [];
-    }
-    if (!pool || pool.length === 0) return null;
-
-    // Choose based on "punch": strong accents prefer punchy samples.
-    const sorted = pool.slice().sort((a,b) => (b.features?.punch||0) - (a.features?.punch||0));
-    if (accentLevel === 3){
-      const top = sorted.slice(0, Math.min(8, sorted.length));
-      return top[Math.floor(rng()*top.length)];
-    } else if (accentLevel === 2){
-      const mid = sorted.slice(0, Math.min(14, sorted.length));
-      return mid[Math.floor(rng()*mid.length)];
-    } else {
-      return sorted[Math.floor(rng()*sorted.length)];
+  function renderHeader(){
+    headerEl.innerHTML = "";
+    const blank = document.createElement("div");
+    blank.textContent = "STEP";
+    headerEl.appendChild(blank);
+    for (let i=0;i<STEPS;i++){
+      const h = document.createElement("div");
+      h.className = "h";
+      h.textContent = String(i+1);
+      headerEl.appendChild(h);
     }
   }
 
-  function busPan(bus){
-    // Subtle stereo layout, not DAW-like.
-    switch(bus){
-      case 'KICK': return 0.00;
-      case 'SNARE': return -0.08;
-      case 'CLAP': return 0.10;
-      case 'HAT': return 0.22;
-      case 'BASS': return -0.18;
-      case 'PERC': return 0.30;
-      default: return 0;
-    }
-  }
+  function renderGrid(){
+    gridEl.innerHTML = "";
+    for (let r=0;r<ROWS;r++){
+      const lab = document.createElement("div");
+      lab.className = "rlabel";
+      lab.textContent = CATS[r];
+      gridEl.appendChild(lab);
 
-  function levelGain(level){
-    // 0 empty, 1 ghost, 2 hit, 3 accent
-    if (level === 1) return 0.22;
-    if (level === 2) return 0.55;
-    if (level === 3) return 0.95;
-    return 0;
-  }
-
-  function buildEventGetter(){
-    const bars = state.pattern.bars;
-    const total = bars * 16;
-    const rng = seededRng(getSeed());
-    return (step) => {
-      const events = [];
-      for (const row of state.pattern.rows){
-        if (row.muted) continue;
-        const level = row.steps[step] || 0;
-        if (level === 0) continue;
-
-        const bus = (row.name === 'PERC/FX') ? 'PERC' : row.bus;
-        const sample = pickSampleForBus(bus, level, rng);
-        if (!sample || !sample.buffer) continue;
-
-        events.push({
-          buffer: sample.buffer,
-          gain: levelGain(level),
-          pan: busPan(bus),
-          accentLevel: level,
-          muted: false,
-          label: `${row.name}:${level}`
+      for (let s=0;s<STEPS;s++){
+        const cell = document.createElement("div");
+        cell.className = "step";
+        cell.dataset.r = String(r);
+        cell.dataset.s = String(s);
+        cell.dataset.state = String(state.pattern[r][s]);
+        cell.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          const cur = state.pattern[r][s];
+          const next = (cur + 1) % 4;
+          state.pattern[r][s] = next;
+          cell.dataset.state = String(next);
+          updateVisualDistribution();
         });
+        gridEl.appendChild(cell);
       }
-      return events;
+    }
+  }
+
+  function setPlayingColumn(step){
+    const cells = gridEl.querySelectorAll(".step");
+    cells.forEach(c => c.classList.remove("playing"));
+    if (state.viewMode !== "follow") return;
+    for (const c of cells){
+      if (Number(c.dataset.s) === step) c.classList.add("playing");
+    }
+  }
+
+  // ---------- Preview ----------
+  async function previewFile(idx){
+    const f = state.files[idx];
+    if (!f) return;
+    await ensureAudio();
+    if (audioCtx.state !== "running"){
+      await audioCtx.resume();
+    }
+
+    // stop previous preview only (do not touch transport)
+    if (state.previewSource){
+      safeStopSource(state.previewSource);
+      state.previewSource = null;
+    }
+
+    // if buffer not decoded, decode
+    if (!f.buffer){
+      setStatus("decoding…", f.name);
+      f.buffer = await decodeFile(f.file);
+    }
+
+    const src = audioCtx.createBufferSource();
+    src.buffer = f.buffer;
+    const g = audioCtx.createGain();
+    const t0 = audioCtx.currentTime;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.65, t0+0.01);
+    g.gain.linearRampToValueAtTime(0.0001, t0+Math.min(0.35, f.buffer.duration));
+    src.connect(g);
+    g.connect(master);
+
+    src.start();
+    state.previewSource = src;
+    state.previewGain = g;
+
+    setStatus("preview", `${f.name}  •  ${f.category || "—"}`);
+    src.onended = () => {
+      if (state.previewSource === src){
+        state.previewSource = null;
+      }
     };
   }
 
-  // ====== Seed ======
-  function getSeed(){
-    if (typeof state.seed === 'number') return state.seed >>> 0;
-    // Auto seed: stable within a session by default
-    if (state._autoSeed == null){
-      state._autoSeed = (Math.random()*0xFFFFFFFF) >>> 0;
-    }
-    return state._autoSeed;
+  // ---------- Transport scheduling ----------
+  function stepToTime(stepIndex){
+    const spb = 60 / state.bpm;
+    const stepDur = spb / 4; // 16 steps per 4/4 bar (1/16)
+    return stepIndex * stepDur;
   }
 
-  function toggleSeed(){
-    if (typeof state.seed === 'number'){
-      state.seed = null;
-      $('btnSeed').textContent = 'SEED: AUTO';
-      toast.show('Seed set to AUTO.');
-    } else {
-      // derive from time
-      const s = (Date.now() & 0xFFFFFFFF) >>> 0;
-      state.seed = s;
-      $('btnSeed').textContent = `SEED: ${s.toString(16).toUpperCase()}`;
-      toast.show('Seed locked (from time).');
-    }
-    logger.log(`Seed changed: ${typeof state.seed === 'number' ? state.seed : 'AUTO'}`);
+  function velocityFromState(st){
+    if (st === 1) return 0.25;
+    if (st === 2) return 0.55;
+    if (st === 3) return 0.85;
+    return 0.0;
   }
 
-  // ====== Generate ======
-  function generate(){
-    state.pattern.bars = parseInt($('bars').value, 10);
-    state.pattern = makeEmptyPattern(state.pattern.bars);
+  function pickBufferForCat(cat){
+    // choose a buffer from files with matching category; fallback any.
+    const list = state.files.filter(f => f.buffer && f.category === cat);
+    if (list.length) return list[Math.floor(Math.random()*list.length)].buffer;
+    const any = state.files.filter(f => f.buffer);
+    if (any.length) return any[Math.floor(Math.random()*any.length)].buffer;
+    return null;
+  }
 
-    const rng = seededRng(getSeed());
-    const knobs = {
-      complexity: clamp(parseInt($('complexity').value,10) || 0, 0, 100),
-      variation: clamp(parseInt($('variation').value,10) || 0, 0, 100),
+  function scheduleStep(step, time){
+    // snapshot pattern at schedule time (prevents crackles when pattern changes during playback)
+    for (let r=0;r<ROWS;r++){
+      const st = state.pattern[r][step];
+      if (st === 0) continue;
+      const vel = velocityFromState(st);
+      const cat = CATS[r];
+      const buf = pickBufferForCat(cat);
+      if (!buf) continue;
+
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.0001, time);
+      g.gain.linearRampToValueAtTime(vel, time + 0.006);
+      g.gain.linearRampToValueAtTime(0.0001, time + Math.min(0.18, buf.duration));
+
+      src.connect(g);
+      g.connect(master);
+      src.start(time);
+      safeStopSource(src, time + buf.duration + 0.05);
+
+      state.activeSources.add(src);
+      src.onended = () => state.activeSources.delete(src);
+    }
+  }
+
+  function schedulerTick(){
+    if (!state.isPlaying) return;
+    const ct = audioCtx.currentTime;
+    while (state.nextNoteTime < ct + state.scheduleAhead){
+      scheduleStep(state.currentStep, state.nextNoteTime);
+      state.nextNoteTime += stepToTime(1);
+      state.currentStep = (state.currentStep + 1) % STEPS;
+    }
+  }
+
+  function startTransport(){
+    if (state.isPlaying) return;
+    state.isPlaying = true;
+    state.currentStep = 0;
+    state.nextNoteTime = audioCtx.currentTime + 0.05;
+
+    state.scheduler = setInterval(schedulerTick, state.lookaheadMs);
+
+    setStatus("playing", "transport running");
+  }
+
+  function stopTransport(){
+    state.isPlaying = false;
+    if (state.scheduler){
+      clearInterval(state.scheduler);
+      state.scheduler = null;
+    }
+    // stop scheduled/active sources (hard stop)
+    killAllSources();
+    setPlayingColumn(-1);
+    setStatus("stopped", "");
+  }
+
+  // ---------- Random pattern generation ----------
+  function resetPattern(){
+    for (let r=0;r<ROWS;r++) for (let s=0;s<STEPS;s++) state.pattern[r][s] = 0;
+    renderGrid();
+    updateVisualDistribution();
+  }
+
+  function setHit(cat, step, st=2){
+    const r = CATS.indexOf(cat);
+    if (r < 0) return;
+    state.pattern[r][((step%STEPS)+STEPS)%STEPS] = st;
+  }
+
+  function generateBase(style, rng){
+    resetPattern();
+    // Reasonable defaults
+    if (style === "minimal"){
+      setHit("KICK",0,3); setHit("KICK",8,2);
+      setHit("SNARE",4,3); setHit("SNARE",12,3);
+      for (let i=0;i<STEPS;i+=2) setHit("HAT", i, 1);
+      setHit("CLAP",12,2);
+      return;
+    }
+
+    if (style === "dnb"){
+      setHit("KICK",0,3); setHit("KICK",10,2);
+      setHit("SNARE",4,3); setHit("SNARE",12,3);
+      for (let i=0;i<STEPS;i++){
+        if (i%2===0) setHit("HAT", i, 2);
+        if (i%4===2 && rng()<0.4) setHit("HAT", i, 1);
+      }
+      if (rng()<0.6) setHit("CLAP",12,2);
+      if (rng()<0.35) setHit("PERC/FX",14,1);
+      if (rng()<0.35) setHit("PERC/FX",2,1);
+      return;
+    }
+
+    if (style === "breakbeat"){
+      // Amen-ish skeleton
+      setHit("KICK",0,3); setHit("KICK",7,2); setHit("KICK",10,2);
+      setHit("SNARE",4,3); setHit("SNARE",11,2); setHit("SNARE",12,3);
+      setHit("HAT",2,1); setHit("HAT",6,1); setHit("HAT",8,1); setHit("HAT",14,1);
+      if (rng()<0.7) setHit("CLAP",12,2);
+      setHit("PERC/FX",15,1);
+      return;
+    }
+
+    // jungle
+    setHit("KICK",0,3); setHit("KICK",6,2); setHit("KICK",9,2);
+    setHit("SNARE",4,3); setHit("SNARE",12,3);
+    setHit("HAT",2,1); setHit("HAT",3,1); setHit("HAT",6,1); setHit("HAT",8,1); setHit("HAT",10,1); setHit("HAT",14,1);
+    setHit("PERC/FX",15,2);
+    if (rng()<0.5) setHit("CLAP",12,2);
+  }
+
+  function applyDensity(density, rng, style){
+    // density: 0..100; adds/removes hits without altering audio graph (no playback pops)
+    const d = density / 100;
+
+    // Thin out if low density
+    for (let r=0;r<ROWS;r++){
+      for (let s=0;s<STEPS;s++){
+        const st = state.pattern[r][s];
+        if (st === 0) continue;
+        const keepP = 0.25 + 0.75*d;
+        if (rng() > keepP){
+          state.pattern[r][s] = 0;
+        }
+      }
+    }
+
+    // Add embellishments if high density
+    const addP = Math.max(0, d - 0.45) * 1.6; // 0..~0.88
+    for (let s=0;s<STEPS;s++){
+      if (rng() < addP){
+        // hats / perc accents
+        if (rng() < 0.65){
+          const st = rng()<0.25 ? 3 : (rng()<0.65 ? 2 : 1);
+          state.pattern[CATS.indexOf("HAT")][s] = Math.max(state.pattern[CATS.indexOf("HAT")][s], st);
+        } else {
+          const rr = rng() < 0.5 ? "PERC/FX" : "CLAP";
+          const st = rng()<0.18 ? 3 : 1;
+          state.pattern[CATS.indexOf(rr)][s] = Math.max(state.pattern[CATS.indexOf(rr)][s], st);
+        }
+      }
+    }
+
+    // Style-specific ghosting
+    if (style === "dnb" || style === "jungle"){
+      for (let s=0;s<STEPS;s++){
+        if (rng() < 0.22*d){
+          const st = (s%4===3) ? 1 : 0;
+          if (st) state.pattern[CATS.indexOf("SNARE")][s] = Math.max(state.pattern[CATS.indexOf("SNARE")][s], 1);
+        }
+      }
+    }
+  }
+
+  function randomizePattern(){
+    const style = $("styleMode").value;
+    const density = Number($("density").value);
+    const seed = (Date.now() ^ Math.floor(Math.random()*1e9)) >>> 0;
+    const rng = mulberry32(seed);
+
+    generateBase(style, rng);
+    applyDensity(density, rng, style);
+
+    // Render only (no audio graph rebuild -> prevents playback crackle)
+    renderGrid();
+    updateVisualDistribution();
+    setStatus("pattern", `randomized • ${style.toUpperCase()} • dens ${density}`);
+  }
+
+  // ---------- Visuals (8-bit + pseudo 3D) ----------
+  const cvFight = $("cvFighters");
+  const ctxFight = cvFight.getContext("2d");
+  const cvGeo = $("cvGeo");
+  const ctxGeo = cvGeo.getContext("2d");
+
+  // Offscreen low-res for pixel effect
+  const offFight = document.createElement("canvas");
+  offFight.width = 160; offFight.height = 90;
+  const offFightCtx = offFight.getContext("2d");
+
+  const offGeo = document.createElement("canvas");
+  offGeo.width = 160; offGeo.height = 90;
+  const offGeoCtx = offGeo.getContext("2d");
+
+  const fighters = [];
+  let geoRot = 0;
+
+  function patternDistribution(){
+    const dist = {};
+    for (const c of CATS) dist[c]=0;
+    for (let r=0;r<ROWS;r++){
+      for (let s=0;s<STEPS;s++){
+        dist[CATS[r]] += (state.pattern[r][s] ? 1 : 0);
+      }
+    }
+    return dist;
+  }
+
+  function updateFighters(){
+    const dist = patternDistribution();
+    const total = Object.values(dist).reduce((a,b)=>a+b,0) || 1;
+
+    // desired fighter count based on density
+    const desired = clamp(Math.round(4 + (total/ (ROWS*STEPS)) * 10), 4, 14);
+    while (fighters.length < desired){
+      fighters.push(makeFighter());
+    }
+    while (fighters.length > desired){
+      fighters.pop();
+    }
+
+    // assign archetypes based on distribution
+    const weights = [
+      ["KICK", dist["KICK"]],
+      ["SNARE", dist["SNARE"]],
+      ["HAT", dist["HAT"]],
+      ["CLAP", dist["CLAP"]],
+      ["BASS", dist["BASS"]],
+      ["PERC/FX", dist["PERC/FX"]],
+    ].sort((a,b)=>b[1]-a[1]);
+
+    fighters.forEach((f,i) => {
+      const t = weights[i % weights.length][0];
+      f.type = t;
+      // adjust size/speed by type
+      f.size = (t==="KICK"||t==="BASS") ? 6 : (t==="SNARE"||t==="CLAP") ? 5 : 4;
+      f.speed = (t==="HAT") ? 1.5 : (t==="PERC/FX") ? 1.25 : 1.0;
+      f.hp = clamp(8 + Math.floor(dist[t]/2), 6, 18);
+    });
+  }
+
+  function makeFighter(){
+    return {
+      x: Math.random()*150+5,
+      y: Math.random()*60+18,
+      vx: (Math.random()<0.5?-1:1)*(0.6+Math.random()*0.6),
+      dir: 1,
+      size: 5,
+      speed: 1,
+      hp: 10,
+      cool: 0,
+      type: "PERC/FX"
     };
-    const groove = ($('groove')?.value || 'straight');
-    genPattern(state.pattern, knobs, rng, groove);
-
-    // Keep cursor in range
-    state.cursor.row = clamp(state.cursor.row, 0, state.pattern.rows.length-1);
-    state.cursor.step = clamp(state.cursor.step, 0, state.pattern.bars*16-1);
-
-    // Update engine pattern
-    engine.setPattern(state.pattern);
-
-    updateViewBarOptions();
-    buildGrid();
-    updateKV();
-
-    const poolInfo = `Pools: K=${state.busMap.KICK.length} S=${state.busMap.SNARE.length} H=${state.busMap.HAT.length} C=${state.busMap.CLAP.length} B=${state.busMap.BASS.length} P+F=${state.busMap.PERC.length+state.busMap.FX.length}`;
-    $('seqTitle').textContent = `Generated ${state.pattern.bars} bar(s). ${poolInfo}`;
-    logger.log(`GENERATE: bars=${state.pattern.bars}, complexity=${knobs.complexity}, variation=${knobs.variation}. ${poolInfo}`);
-    toast.show('Pattern generated.');
   }
 
-  function resetGrid(){
-    const bars = parseInt($('bars').value, 10) || 2;
-    state.pattern = makeEmptyPattern(bars);
-    engine.setPattern(state.pattern);
-    state.cursor = {row:0, step:0};
-    updateViewBarOptions();
-    buildGrid();
-    logger.log('Grid reset.');
-    toast.show('Grid reset.');
+  function rmsFromAnalyser(){
+    if (!analyser) return 0;
+    const arr = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(arr);
+    let sum=0;
+    for (let i=0;i<arr.length;i++){
+      const v = (arr[i]-128)/128;
+      sum += v*v;
+    }
+    return Math.sqrt(sum/arr.length);
   }
 
-  // ====== Play/Stop ======
-  async function play(){
-    try{
-      await engine.ensure();
-      engine.setPattern(state.pattern);
+  function drawFighters(dt){
+    const g = offFightCtx;
+    const w = offFight.width, h = offFight.height;
+    g.clearRect(0,0,w,h);
 
-      const getter = buildEventGetter();
+    // background
+    g.fillStyle = "#050607";
+    g.fillRect(0,0,w,h);
 
-      const getBpm = () => clamp(parseFloat($('tempo').value) || 120, 40, 260);
-      const getSwing = () => clamp(parseFloat($('swing').value) || 0, 0, 75);
+    // arena line
+    g.fillStyle = "#1e2229";
+    g.fillRect(0, h-16, w, 1);
 
-      engine.onStep = (s) => {
-        // blink cursor on current step position (bar view follows cursor, so update step only)
-        state.playheadStep = s;
-        applyAutoBreakFX(s);
-        if (state.viewBar === 'follow'){
-          // rebuild grid only when bar changes
-          const showing = Math.floor((engine.isRunning ? state.playheadStep : state.cursor.step) / 16);
-          const want = Math.floor(s / 16);
-          if (engine.isRunning && want !== showing){
-            buildGrid();
+    const amp = rmsFromAnalyser();
+    const flick = clamp(Math.floor(amp*40), 0, 6);
+
+    // subtle "scene" shifts based on leading category
+    const dist = patternDistribution();
+    const lead = Object.entries(dist).sort((a,b)=>b[1]-a[1])[0]?.[0] || "PERC/FX";
+    const sceneTone = (lead==="KICK"||lead==="BASS") ? "#0b111a" : (lead==="HAT") ? "#080c12" : "#0a0c10";
+    g.fillStyle = sceneTone;
+    g.fillRect(0,0,w,h);
+
+    // fighters
+    for (let i=0;i<fighters.length;i++){
+      const f = fighters[i];
+      f.x += f.vx * f.speed * dt;
+      if (f.x < 4){ f.x=4; f.vx *= -1; }
+      if (f.x > w-8){ f.x=w-8; f.vx *= -1; }
+      f.dir = f.vx>=0 ? 1 : -1;
+
+      // interactions (simple "bump fight")
+      f.cool -= dt;
+      for (let j=i+1;j<fighters.length;j++){
+        const o = fighters[j];
+        const dx = o.x - f.x;
+        const dy = o.y - f.y;
+        const d2 = dx*dx + dy*dy;
+        if (d2 < 70){
+          // push apart
+          const push = 0.02*dt;
+          f.vx -= push*dx;
+          o.vx += push*dx;
+
+          if (f.cool <= 0 && Math.random() < 0.02 + amp*0.2){
+            f.hp = Math.max(0, f.hp-1);
+            o.hp = Math.max(0, o.hp-1);
+            f.cool = 20 + Math.random()*30;
           }
         }
-        highlightPlaybackStep(s);
-        $('clockTitle').textContent = `PLAYHEAD: step ${(s%16)+1} / 16  (bar ${Math.floor(s/16)+1} / ${state.pattern.bars})`;
+      }
+
+      // draw as pixel sprite
+      const sx = Math.round(f.x), sy = Math.round(f.y);
+      const sz = f.size;
+
+      // color by type (still monochrome-ish)
+      let col = "#223d5c";
+      if (f.type==="KICK") col="#1a2a3d";
+      else if (f.type==="SNARE") col="#2b3647";
+      else if (f.type==="HAT") col="#283043";
+      else if (f.type==="CLAP") col="#2d3c52";
+      else if (f.type==="BASS") col="#162437";
+      else col="#1e2b3a";
+
+      g.fillStyle = col;
+      g.fillRect(sx, sy, sz, sz);
+      // head
+      g.fillRect(sx + (f.dir>0?sz: -2), sy-3, 2, 2);
+      // feet
+      g.fillStyle = "#0f141c";
+      g.fillRect(sx, sy+sz, 2, 1);
+      g.fillRect(sx+sz-2, sy+sz, 2, 1);
+
+      // hp bar
+      const hpw = clamp(Math.round((f.hp/18)*12), 0, 12);
+      g.fillStyle = "#1e2229";
+      g.fillRect(sx-1, sy-7, 12, 2);
+      g.fillStyle = "#223d5c";
+      g.fillRect(sx-1, sy-7, hpw, 2);
+
+      // occasional flashes on snare/clap energy
+      if ((lead==="SNARE" || lead==="CLAP") && flick>3){
+        g.fillStyle = "rgba(255,255,255,0.05)";
+        g.fillRect(0,0,w,h);
+      }
+    }
+
+    // scale to main canvas with pixelated look
+    ctxFight.imageSmoothingEnabled = false;
+    ctxFight.clearRect(0,0,cvFight.width,cvFight.height);
+    ctxFight.drawImage(offFight, 0, 0, cvFight.width, cvFight.height);
+  }
+
+  function drawGeo(dt){
+    const g = offGeoCtx;
+    const w = offGeo.width, h = offGeo.height;
+    g.clearRect(0,0,w,h);
+
+    // background
+    g.fillStyle = "#050607";
+    g.fillRect(0,0,w,h);
+
+    const dist = patternDistribution();
+    const lead = Object.entries(dist).sort((a,b)=>b[1]-a[1])[0]?.[0] || "PERC/FX";
+    const amp = rmsFromAnalyser();
+
+    // choose shape by lead
+    const shape = (lead==="KICK"||lead==="BASS") ? "cube" :
+                  (lead==="HAT") ? "tetra" :
+                  (lead==="SNARE"||lead==="CLAP") ? "octa" : "ring";
+
+    geoRot += dt*0.0015*(1 + amp*8);
+
+    // Simple 3D wireframes
+    function project(p){
+      const z = p[2] + 3.5;
+      const s = 60 / z;
+      return [w/2 + p[0]*s, h/2 + p[1]*s];
+    }
+
+    function rotY(p, a){
+      const [x,y,z] = p;
+      const ca=Math.cos(a), sa=Math.sin(a);
+      return [x*ca + z*sa, y, -x*sa + z*ca];
+    }
+    function rotX(p, a){
+      const [x,y,z] = p;
+      const ca=Math.cos(a), sa=Math.sin(a);
+      return [x, y*ca - z*sa, y*sa + z*ca];
+    }
+
+    let verts=[], edges=[];
+    if (shape==="cube"){
+      verts = [
+        [-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+        [-1,-1, 1],[1,-1, 1],[1,1, 1],[-1,1, 1],
+      ];
+      edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+    } else if (shape==="tetra"){
+      verts = [[0,1,0],[-1,-1,-1],[1,-1,-1],[0,-1,1]];
+      edges = [[0,1],[0,2],[0,3],[1,2],[2,3],[3,1]];
+    } else if (shape==="octa"){
+      verts = [[0,0,1.3],[0,0,-1.3],[1.3,0,0],[-1.3,0,0],[0,1.3,0],[0,-1.3,0]];
+      edges = [[0,2],[0,3],[0,4],[0,5],[1,2],[1,3],[1,4],[1,5],[2,4],[2,5],[3,4],[3,5]];
+    } else { // ring
+      const N=12;
+      for (let i=0;i<N;i++){
+        const a = (i/N)*Math.PI*2;
+        verts.push([Math.cos(a)*1.4, Math.sin(a)*1.0, 0]);
+        edges.push([i, (i+1)%N]);
+      }
+    }
+
+    // transform + draw
+    const jitter = amp*0.20;
+    const pts = verts.map(v => {
+      let p = rotY(v, geoRot);
+      p = rotX(p, geoRot*0.85);
+      return [p[0]*(1+jitter), p[1]*(1+jitter), p[2]];
+    }).map(project);
+
+    // color stays in the same palette (no neon)
+    g.strokeStyle = "#223d5c";
+    g.lineWidth = 1;
+
+    g.beginPath();
+    for (const [a,b] of edges){
+      const pa = pts[a], pb = pts[b];
+      g.moveTo(pa[0], pa[1]);
+      g.lineTo(pb[0], pb[1]);
+    }
+    g.stroke();
+
+    // points
+    g.fillStyle = "rgba(231,231,231,0.45)";
+    for (const p of pts){
+      g.fillRect(Math.round(p[0]), Math.round(p[1]), 1, 1);
+    }
+
+    ctxGeo.imageSmoothingEnabled = false;
+    ctxGeo.clearRect(0,0,cvGeo.width,cvGeo.height);
+    ctxGeo.drawImage(offGeo, 0, 0, cvGeo.width, cvGeo.height);
+  }
+
+  function updateVisualDistribution(){
+    updateFighters();
+  }
+
+  let lastFrame = now();
+  function animLoop(){
+    const t = now();
+    const dt = t - lastFrame;
+    lastFrame = t;
+
+    if (state.isPlaying){
+      // update playing column indicator
+      const stepDur = (60/state.bpm)/4;
+      const rel = audioCtx ? (audioCtx.currentTime - (state.nextNoteTime - stepDur*(state.currentStep))) : 0;
+      // Use modulo time tracking with currentStep already advanced; fallback via currentStep-1.
+      const displayStep = (state.currentStep - 1 + STEPS) % STEPS;
+      setPlayingColumn(displayStep);
+    }
+
+    drawFighters(dt);
+    drawGeo(dt);
+
+    requestAnimationFrame(animLoop);
+  }
+
+  // ---------- Recording / Export ----------
+  async function toggleRecord(){
+    await ensureAudio();
+    if (audioCtx.state !== "running") await audioCtx.resume();
+
+    if (!state.record.isRecording){
+      // Create stream destination once
+      if (!state.record.streamDest){
+        state.record.streamDest = audioCtx.createMediaStreamDestination();
+        master.connect(state.record.streamDest);
+      }
+      const rec = new MediaRecorder(state.record.streamDest.stream, {mimeType: "audio/webm"});
+      state.record.rec = rec;
+      state.record.chunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) state.record.chunks.push(e.data); };
+      rec.onstop = () => {
+        const blob = new Blob(state.record.chunks, {type:"audio/webm"});
+        downloadBlob(blob, `tcseq_record_${Date.now()}.webm`);
+        state.record.chunks = [];
       };
-
-      engine.start(getter, getBpm, getSwing);
-      setMode('Playing');
-      toast.show('PLAY.');
-    }catch(err){
-      logger.log(`PLAY failed: ${err.message || err}`, 'ERR');
-      toast.show('PLAY failed. See DEBUG.');
-    }
-    updateKV();
-  }
-
-  function stop(){
-    engine.stop();
-    setMode('Idle');
-    $('clockTitle').textContent = '—';
-    clearPlaybackHighlight();
-    toast.show('STOP.');
-    updateKV();
-  }
-
-  function highlightPlaybackStep(globalStep){
-    // highlight the cell that corresponds to globalStep in the currently displayed bar
-    let barIndex;
-    if (state.viewBar === 'follow'){
-      barIndex = Math.floor((engine.isRunning ? state.playheadStep : state.cursor.step) / 16);
+      rec.start();
+      state.record.isRecording = true;
+      $("btnRecord").textContent = "RECORDING…";
+      setStatus("record", "audio/webm");
+      toast("Recording started (WEBM). Click RECORD again to stop.");
     } else {
-      const vb = parseInt(state.viewBar, 10);
-      barIndex = isFinite(vb) ? clamp(vb-1, 0, state.pattern.bars-1) : 0;
-    }
-    const base = barIndex * 16;
-    if (globalStep < base || globalStep >= base + 16) return;
-
-    const c = globalStep - base;
-    const grid = $('seqGrid');
-    const cells = grid.querySelectorAll('.cell');
-    cells.forEach(el => el.classList.remove('cursorBlink'));
-    // find cells at column c across rows: layout: label + 16 cells per row
-    const rows = state.pattern.rows.length;
-    for (let r=0; r<rows; r++){
-      const idx = r*(1+16) + 1 + c;
-      const el = grid.children[idx];
-      if (el && el.classList.contains('cell')) el.classList.add('cursorBlink');
+      state.record.isRecording = false;
+      $("btnRecord").textContent = "RECORD";
+      try{ state.record.rec.stop(); }catch(e){}
+      setStatus("record", "stopped");
+      toast("Recording saved.");
     }
   }
 
-  function clearPlaybackHighlight(){
-    const grid = $('seqGrid');
-    if (!grid) return;
-    grid.querySelectorAll('.cell').forEach(el => el.classList.remove('cursorBlink'));
-  }
-
-  // ====== Export log ======
-  function downloadText(filename, text){
-    const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+  function downloadBlob(blob, filename){
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url), 800);
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
   }
 
-  function exportLog(){
-    const sys = [
-      '=== SYSTEM ===',
-      `UserAgent: ${navigator.userAgent}`,
-      `Platform : ${navigator.platform}`,
-      `Time     : ${new Date().toString()}`,
-      `URL      : ${location.href}`,
-      `Secure   : ${location.protocol === 'https:'}`,
-      `Ctx      : ${engine.ctx ? (engine.ctx.state+' @ '+engine.ctx.sampleRate+'Hz') : 'none'}`
-    ].join('\n');
+  function audioBufferToWav(ab, normalize){
+    // 16-bit PCM WAV
+    const numCh = ab.numberOfChannels;
+    const sr = ab.sampleRate;
+    const len = ab.length;
 
-    const inv = [
-      '\n=== INVENTORY ===',
-      `Files total: ${state.files.length}`,
-      ...state.files.map(f => {
-        const ft = f.features || {};
-        return `- ${safeName(f.file)} | status=${f.status||''} | type=${f.type||''} | dur=${f.buffer?fmt(f.buffer.duration,3):'—'} | punch=${ft.punch??'—'} | err=${f.error||''}`;
-      })
-    ].join('\n');
-
-    const text = sys + '\n\n' + logger.exportText() + '\n' + inv + '\n';
-    const ts = new Date().toISOString().replace(/[:.]/g,'-');
-    downloadText(`tc_dos_log_${ts}.txt`, text);
-    toast.show('Exported log.');
-  }
-
-  
-  // ====== FX apply (EQ + GLITCH) ======
-  function readFX(){
-    const glitchOn = ($('fxGlitchOn')?.value || '0') === '1';
-    const glitchMix = clamp((parseFloat($('fxGlitchMix')?.value) || 0) / 100, 0, 1);
-    const glitchRate = clamp((parseFloat($('fxGlitchRate')?.value) || 0) / 100, 0, 1);
-    const glitchStut = clamp((parseFloat($('fxGlitchStut')?.value) || 0) / 100, 0, 1);
-    const glitchLenMs = clamp((parseFloat($('fxGlitchLen')?.value) || 120), 20, 350);
-    const glitchLenSec = glitchLenMs / 1000;
-    const glitchCrush = clamp((parseFloat($('fxGlitchCrush')?.value) || 0) / 100, 0, 1);
-    const glitchDown = clamp(parseInt($('fxGlitchDown')?.value || '1', 10) || 1, 1, 24);
-    const glitchDrop = clamp((parseFloat($('fxGlitchDrop')?.value) || 0) / 100, 0, 1);
-
-    const eqOn = ($('fxEqOn')?.value || '0') === '1';
-    const midFreq = clamp(parseFloat($('fxEqMidFreq')?.value || '1200'), 200, 6000);
-    const lowDb = clamp(parseFloat($('fxEqLow')?.value || '0'), -12, 12);
-    const midDb = clamp(parseFloat($('fxEqMid')?.value || '0'), -12, 12);
-    const highDb = clamp(parseFloat($('fxEqHigh')?.value || '0'), -12, 12);
-    const outDb = clamp(parseFloat($('fxOut')?.value || '0'), -12, 6);
-
-    
-    const breakMode = ($('fxBreakMode')?.value || 'off');
-    const breakIntensity = clamp((parseFloat($('fxBreakIntensity')?.value) || 0) / 100, 0, 1);
-    const repeatDiv = parseInt($('fxRepeatDiv')?.value || '16', 10);
-    const lpfHz = clamp(parseFloat($('fxLPF')?.value || '12000'), 200, 20000);
-
-    const delayDiv = $('fxDelayDiv')?.value || 'off';
-    const delaySend = clamp((parseFloat($('fxDelaySend')?.value) || 0) / 100, 0, 1);
-    const delayFb = clamp((parseFloat($('fxDelayFb')?.value) || 0) / 100, 0, 0.95);
-    const delayCutHz = clamp(parseFloat($('fxDelayCut')?.value || '4200'), 200, 20000);
-
-return {
-      breakfx: { breakMode, breakIntensity, repeatDiv, lpfHz, delayDiv, delaySend, delayFb, delayCutHz },
-      glitch: { enabled: glitchOn, mix: glitchMix, rate: glitchRate, stut: glitchStut, stutLenSec: glitchLenSec, crush: glitchCrush, down: glitchDown, drop: glitchDrop },
-      eq: { enabled: eqOn, lowDb, midDb, highDb, midFreq, outDb }
-    };
-  }
-
-  
-  function computeBreakNodeParams(b){
-    const bpm = clamp(parseFloat($('tempo')?.value) || 120, 40, 260);
-    const step = (60 / bpm) / 4; // 16th
-    let delayTimeSec = 0.125;
-    if (!b || b.delayDiv === 'off') delayTimeSec = 0.125;
-    else if (b.delayDiv === '16') delayTimeSec = step;
-    else if (b.delayDiv === '8') delayTimeSec = step * 2;
-    else if (b.delayDiv === '4') delayTimeSec = step * 4;
-
-    const send = (!b || b.delayDiv === 'off') ? 0 : b.delaySend;
-    const fb = (!b || b.delayDiv === 'off') ? 0 : b.delayFb;
-
-    return {
-      lpfHz: (b ? b.lpfHz : 18000),
-      delayTimeSec,
-      delaySend: send,
-      delayFb: fb,
-      delayCutHz: (b ? b.delayCutHz : 5000)
-    };
-  }
-
-  function applyAutoBreakFX(stepIndex){
-    try{
-      if (!engine || !engine.ctx) return;
-      const fx = readFX();
-      const b = fx.breakfx;
-
-      // baseline always
-      engine.setBreakFX(computeBreakNodeParams(b));
-
-      if (!b || b.breakMode === 'off' || b.breakIntensity <= 0.001) return;
-
-      const bpm = clamp(parseFloat($('tempo')?.value) || 120, 40, 260);
-      const stepDur = (60 / bpm) / 4;
-      const sub = clamp(b.repeatDiv || 16, 8, 32);
-      const repeatLen = (sub === 32) ? stepDur/2 : (sub === 8 ? stepDur*2 : stepDur);
-
-      const inBar = stepIndex % 16;
-      const endFill = (inBar >= 12);
-
-      const I = b.breakIntensity;
-
-      // dynamic glitch params (override while playing)
-      let mix, rate, stut, crush, down, drop;
-      if (b.breakMode === 'break'){
-        mix = clamp(0.10 + 0.40*I + (endFill ? 0.15 : 0), 0, 0.85);
-        stut = clamp(0.10 + 0.55*I + (endFill ? 0.25 : 0), 0, 0.95);
-        rate = clamp(0.25 + 0.65*I, 0, 1);
-        crush = clamp(0.05 + 0.35*I, 0, 0.8);
-        down = Math.round(clamp(1 + 10*I + (endFill ? 4 : 0), 1, 24));
-        drop = clamp(0.02 + 0.10*I, 0, 0.25);
-      } else if (b.breakMode === 'jungle'){
-        mix = clamp(0.15 + 0.55*I + (endFill ? 0.10 : 0), 0, 0.9);
-        stut = clamp(0.20 + 0.65*I + (endFill ? 0.25 : 0), 0, 0.98);
-        rate = clamp(0.35 + 0.60*I, 0, 1);
-        crush = clamp(0.08 + 0.28*I, 0, 0.7);
-        down = Math.round(clamp(2 + 8*I + (endFill ? 5 : 0), 1, 24));
-        drop = clamp(0.02 + 0.08*I, 0, 0.22);
-      } else { // dnb
-        mix = clamp(0.08 + 0.35*I + (endFill ? 0.08 : 0), 0, 0.8);
-        stut = clamp(0.08 + 0.35*I + (endFill ? 0.18 : 0), 0, 0.85);
-        rate = clamp(0.25 + 0.55*I, 0, 1);
-        crush = clamp(0.02 + 0.22*I, 0, 0.6);
-        down = Math.round(clamp(1 + 6*I + (endFill ? 3 : 0), 1, 18));
-        drop = clamp(0.01 + 0.05*I, 0, 0.18);
+    // interleave
+    const interleaved = new Float32Array(len * numCh);
+    let max = 0;
+    for (let ch=0; ch<numCh; ch++){
+      const data = ab.getChannelData(ch);
+      for (let i=0; i<len; i++){
+        const v = data[i];
+        max = Math.max(max, Math.abs(v));
+        interleaved[i*numCh + ch] = v;
       }
-
-      // filter sweep
-      let lpf = clamp(b.lpfHz, 200, 20000);
-      if (endFill){
-        lpf = clamp(lpf * (0.35 + 0.45*(1-I)), 250, 14000);
-      }
-      const wobble = 1 + 0.06*Math.sin((stepIndex/16)*Math.PI*2);
-      lpf = clamp(lpf * wobble, 200, 20000);
-
-      // delay send bias on offbeats
-      const base = computeBreakNodeParams(b);
-      let send = base.delaySend;
-      if (b.delayDiv !== 'off'){
-        const offbeat = (inBar % 4) === 2 || (inBar % 4) === 3;
-        send = clamp(send * (offbeat ? (0.6 + 0.8*I) : 0.35), 0, 0.9);
-      }
-
-      engine.setGlitch({enabled:true, mix, rate, stut, stutLenSec: repeatLen, crush, down, drop});
-      engine.setBreakFX({lpfHz:lpf, delayTimeSec: base.delayTimeSec, delaySend: send, delayFb: base.delayFb, delayCutHz: base.delayCutHz});
-    }catch(err){
-      logger.log(`AutoBreakFX error: ${err?.message || err}`, 'WARN');
     }
-  }
+    let gain = 1;
+    if (normalize && max > 1e-9) gain = 0.98 / max;
 
-function applyFXFromUI(){
-    try{
-      const fx = readFX();
-      if (engine && engine.ctx){
-        engine.setEQ(fx.eq);
-        engine.setGlitch(fx.glitch);
-      }
-    }catch(err){
-      logger.log(`FX apply failed: ${err?.message || err}`, 'WARN');
+    const bytesPerSample = 2;
+    const blockAlign = numCh * bytesPerSample;
+    const byteRate = sr * blockAlign;
+    const dataSize = len * blockAlign;
+
+    const buf = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buf);
+
+    function writeStr(off, s){
+      for (let i=0;i<s.length;i++) view.setUint8(off+i, s.charCodeAt(i));
     }
+
+    writeStr(0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, "WAVE");
+    writeStr(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numCh, true);
+    view.setUint32(24, sr, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, "data");
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    for (let i=0; i<interleaved.length; i++){
+      let v = clamp(interleaved[i]*gain, -1, 1);
+      view.setInt16(offset, v < 0 ? v*0x8000 : v*0x7FFF, true);
+      offset += 2;
+    }
+    return new Blob([buf], {type:"audio/wav"});
   }
 
+  async function offlineRenderToBuffer(sampleRate, bars){
+    // Offline render current pattern (uses decoded buffers only)
+    const spb = 60 / state.bpm;
+    const stepDur = spb / 4;
+    const barDur = stepDur * STEPS;
+    const duration = barDur * bars;
 
-// ====== Load files ======
-  function clearAll(){
-    stop();
-    state.files = [];
-    state.selectedFileId = null;
-    state.busMap = { KICK:[], SNARE:[], HAT:[], CLAP:[], BASS:[], PERC:[], FX:[] };
-    resetGrid();
-    renderFileList();
-    renderInspector();
-    updateKV();
-    logger.log('CLEAR: all state reset.');
-    toast.show('Cleared.');
+    const length = Math.ceil(duration * sampleRate);
+    const oac = new OfflineAudioContext(2, length, sampleRate);
+    const out = oac.createGain();
+    out.gain.value = 0.9;
+    out.connect(oac.destination);
+
+    function scheduleBuf(buf, time, vel){
+      // mix stereo: use buffer channel count
+      const src = oac.createBufferSource();
+      src.buffer = buf;
+      const g = oac.createGain();
+      g.gain.setValueAtTime(0.0001, time);
+      g.gain.linearRampToValueAtTime(vel, time + 0.006);
+      g.gain.linearRampToValueAtTime(0.0001, time + Math.min(0.18, buf.duration));
+      src.connect(g);
+      g.connect(out);
+      src.start(time);
+    }
+
+    // Ensure we have at least one buffer per category, else skip
+    const pool = {};
+    for (const c of CATS) pool[c] = state.files.filter(f => f.buffer && f.category === c).map(f => f.buffer);
+    const any = state.files.filter(f => f.buffer).map(f => f.buffer);
+
+    for (let bar=0; bar<bars; bar++){
+      const baseT = bar*barDur;
+      for (let step=0; step<STEPS; step++){
+        const t = baseT + step*stepDur;
+        for (let r=0;r<ROWS;r++){
+          const st = state.pattern[r][step];
+          if (!st) continue;
+          const vel = velocityFromState(st);
+          const cat = CATS[r];
+          const list = pool[cat];
+          const buf = (list && list.length) ? list[Math.floor(Math.random()*list.length)]
+                    : (any.length ? any[Math.floor(Math.random()*any.length)] : null);
+          if (buf) scheduleBuf(buf, t, vel);
+        }
+      }
+    }
+
+    const rendered = await oac.startRendering();
+    return rendered;
   }
 
-  function addFiles(fileList){
-    const files = Array.from(fileList || []);
-    if (files.length === 0) return;
+  function openExportModal(){
+    $("modalBackdrop").style.display = "flex";
+  }
+  function closeExportModal(){
+    $("modalBackdrop").style.display = "none";
+  }
 
-    // Keep only audio-like.
-    const audioFiles = files.filter(f => (f && (f.type.startsWith('audio/') || /\.(wav|mp3|aif|aiff|flac|ogg|m4a)$/i.test(f.name||''))));
-    if (audioFiles.length === 0){
-      toast.show('No audio files detected.');
+  async function exportNow(){
+    closeExportModal();
+    const fmt = $("exportFormat").value;
+    const sr = Number($("exportSR").value);
+    const bars = Number($("exportBars").value);
+    const norm = $("exportNorm").value === "1";
+
+    if (state.files.filter(f => f.buffer).length === 0){
+      toast("Nothing decoded yet. Load files and run ANALYZE+GENERATE first.");
       return;
     }
 
+    if (fmt === "wav"){
+      setStatus("export", "offline rendering…");
+      const rendered = await offlineRenderToBuffer(sr, bars);
+      const blob = audioBufferToWav(rendered, norm);
+      downloadBlob(blob, `tcseq_${state.bpm}bpm_${bars}bars_${sr}hz.wav`);
+      setStatus("export", "done");
+      toast("WAV exported.");
+      return;
+    }
+
+    if (fmt === "webm"){
+      // Real-time export: arm recorder, play for bars, stop.
+      await ensureAudio();
+      if (audioCtx.state !== "running") await audioCtx.resume();
+
+      if (state.record.isRecording){
+        toast("Stop current recording first.");
+        return;
+      }
+      // Start recording
+      await toggleRecord();
+      // Ensure transport playing
+      if (!state.isPlaying) startTransport();
+
+      const spb = 60/state.bpm;
+      const barDur = (spb*4);
+      const ms = barDur*bars*1000;
+      toast(`Recording ${bars} bar(s) …`);
+      setTimeout(async () => {
+        // stop record (leaves transport running)
+        if (state.record.isRecording) await toggleRecord();
+        setStatus("export", "webm done");
+      }, ms);
+      return;
+    }
+
+    toast("MP3 export disabled (encoder not included).");
+  }
+
+  // ---------- Analyze+Generate button ----------
+  async function analyzeAndGenerate(){
+    if (state.files.length === 0){
+      toast("Load audio files first.");
+      return;
+    }
+    await ensureAudio();
+    if (audioCtx.state !== "running") await audioCtx.resume();
+
+    setStatus("analyze", "decoding + classifying…");
+
+    // Decode any missing buffers (cap 200 files as spec)
     const cap = 200;
-    const remaining = cap - state.files.length;
-    const toAdd = audioFiles.slice(0, Math.max(0, remaining));
-    if (toAdd.length === 0){
-      toast.show('File cap reached (200).');
+    if (state.files.length > cap){
+      toast(`Loaded ${state.files.length} files; only first ${cap} will be used.`);
+    }
+
+    for (let i=0;i<Math.min(state.files.length, cap);i++){
+      const f = state.files[i];
+      if (!f.buffer){
+        try{
+          f.buffer = await decodeFile(f.file);
+        } catch (e){
+          console.warn(e);
+          state.debug.lines.push(`[decode fail] ${f.name}: ${String(e)}`);
+        }
+      }
+      if (f.buffer && !f.features){
+        f.features = extractFeatures(f.buffer);
+        if (!f.override){
+          f.autoCategory = classify(f.features);
+          f.category = f.autoCategory;
+        }
+      }
+    }
+
+    renderFileList();
+
+    // Generate default pattern tuned to the distribution
+    const dist = {};
+    for (const c of CATS) dist[c] = 0;
+    for (const f of state.files){
+      if (f.buffer && f.category) dist[f.category] = (dist[f.category]||0)+1;
+    }
+
+    // Choose style from UI, but bias density by number of hats/percs
+    const style = $("styleMode").value;
+    const density = Number($("density").value);
+    const seed = (Date.now() ^ 0x9E3779B9) >>> 0;
+    const rng = mulberry32(seed);
+
+    generateBase(style, rng);
+
+    // push a little more hats/percs if they exist
+    const hatBoost = clamp(dist["HAT"]/Math.max(1,state.files.length), 0, 1);
+    const dens2 = clamp(Math.round(density + hatBoost*18), 0, 100);
+    applyDensity(dens2, rng, style);
+
+    renderGrid();
+    updateVisualDistribution();
+
+    setStatus("ready", `classified ${state.files.filter(f=>f.buffer).length} file(s)`);
+    toast("Analyze+Generate complete. Click filenames to preview; click class labels to correct.");
+  }
+
+  // ---------- Load/Clear ----------
+  async function loadFiles(){
+    const preferFSA = ("showOpenFilePicker" in window);
+    let files = [];
+    try{
+      if (preferFSA){
+        const handles = await window.showOpenFilePicker({
+          multiple: true,
+          types: [{ description: "Audio", accept: { "audio/*": [".wav",".mp3",".aif",".aiff",".ogg",".m4a",".flac"] } }]
+        });
+        for (const h of handles){
+          const file = await h.getFile();
+          files.push(file);
+        }
+      } else {
+        $("fileInput").click();
+        return;
+      }
+    } catch (e){
+      // user cancelled
       return;
     }
 
-    const startId = state.files.length ? Math.max(...state.files.map(x => x.id)) + 1 : 1;
-    toAdd.forEach((file, i) => {
-      state.files.push({ id: startId+i, file, status:'LOADED', buffer:null, features:null, type:null, error:null });
-    });
+    addFiles(files);
+  }
 
-    if (state.selectedFileId == null && state.files.length > 0){
-      state.selectedFileId = state.files[0].id;
+  function addFiles(files){
+    if (!files || !files.length) return;
+    const current = state.files.length;
+    const cap = 200;
+    const room = cap - current;
+    const take = files.slice(0, Math.max(0, room));
+
+    if (take.length < files.length){
+      toast(`File cap is ${cap}. Extra files were ignored.`);
     }
 
-    logger.log(`LOAD: added ${toAdd.length} file(s). total=${state.files.length}`);
-    toast.show(`Loaded ${toAdd.length} file(s).`);
+    for (const file of take){
+      state.files.push({
+        id: cryptoRandomId(),
+        name: file.name,
+        file,
+        buffer: null,
+        features: null,
+        autoCategory: null,
+        category: null,
+        override: false
+      });
+    }
+    if (state.selectedFileIndex < 0 && state.files.length) state.selectedFileIndex = 0;
     renderFileList();
-    renderInspector();
-    updateKV();
+    setStatus("loaded", `${state.files.length} file(s)`);
   }
 
-  async function pickFiles(){
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'audio/*';
-    input.multiple = true;
-    input.addEventListener('change', async () => {
-      addFiles(input.files);
-    });
-    input.click();
+  function clearAll(){
+    stopTransport();
+    state.files = [];
+    state.selectedFileIndex = -1;
+    resetPattern();
+    renderFileList();
+    setStatus("cleared", "");
   }
 
-  // ====== Help ======
+  function cryptoRandomId(){
+    if (crypto && crypto.getRandomValues){
+      const a = new Uint32Array(2);
+      crypto.getRandomValues(a);
+      return (a[0].toString(16)+a[1].toString(16));
+    }
+    return String(Math.random()).slice(2);
+  }
+
+  // ---------- Debug ----------
+  function toggleDebug(){
+    state.debug.on = !state.debug.on;
+    if (state.debug.on){
+      toast("Debug ON. Open console for logs.");
+      console.log("[TCSEQ debug] state:", state);
+    } else {
+      toast("Debug OFF.");
+    }
+  }
+
+  // ---------- Help ----------
   function showHelp(){
-    const msg =
-`HELP // QUICK START
-
-1) LOAD FILES (or drag & drop)
-2) ANALYZE
-   - Decodes audio + estimates transients & band-energy
-   - Classifies into: KICK / SNARE / HAT / CLAP / BASS / PERC / FX
-3) GENERATE
-   - Creates a 16-step grid per bar (narrow DOS layout)
-   - Uses "memory" anchors + controlled variation
-4) PLAY
-
-Troubleshooting
-- If you used file:// and decoding/playback is unreliable, serve via localhost:
-  python3 -m http.server 8000
-  then open: http://localhost:8000/index.html
-- If audio is silent: click PLAY once to unlock AudioContext.
-- Export log (EXPORT LOG) if something fails.
-
-Editing
-- Click: toggle hit
-- Right-click: cycle empty→ghost→hit→accent
-- 1..6: force category for selected sample
-- Enter: preview selected sample
-`;
-    toast.show(msg, 10000);
+    toast("Workflow: LOAD FILES → ANALYZE+GENERATE → RANDOM PATTERN (optional) → PLAY. Click filename to preview; click class to correct. EXPORT renders audio.");
   }
 
-  // ====== Keyboard controls ======
-  function handleKey(e){
-    const k = e.key;
-    const rMax = state.pattern.rows.length - 1;
-    const sMax = state.pattern.bars*16 - 1;
-    let handled = true;
-
-    if (k === 'ArrowUp') setCursor(state.cursor.row - 1, state.cursor.step);
-    else if (k === 'ArrowDown') setCursor(state.cursor.row + 1, state.cursor.step);
-    else if (k === 'ArrowLeft') setCursor(state.cursor.row, state.cursor.step - 1);
-    else if (k === 'ArrowRight') setCursor(state.cursor.row, state.cursor.step + 1);
-    else if (k === ' ') { e.preventDefault(); toggleHit(); }
-    else if (k === 'a' || k === 'A') setCell(3);
-    else if (k === 'g' || k === 'G') setCell(1);
-    else if (k === 'm' || k === 'M') toggleMuteRow();
-    else if (k === 'Tab'){ e.preventDefault(); cycleSelectedSample(); }
-    else if (k === 'Enter'){ previewSelectedSample(); }
-    else if (k === '1') assignSelectedType('KICK');
-    else if (k === '2') assignSelectedType('SNARE');
-    else if (k === '3') assignSelectedType('HAT');
-    else if (k === '4') assignSelectedType('CLAP');
-    else if (k === '5') assignSelectedType('BASS');
-    else if (k === '6') assignSelectedType('PERC');
-    else handled = false;
-
-    if (handled){
-      renderInspector();
-    }
-  }
-
-  // ====== UI wiring ======
-  $('btnPick').addEventListener('click', pickFiles);
-  $('btnClear').addEventListener('click', clearAll);
-  $('btnAnalyze').addEventListener('click', analyzeAll);
-  $('btnAutoAssign').addEventListener('click', autoAssign);
-  $('btnExport').addEventListener('click', exportLog);
-
-  $('btnGen').addEventListener('click', generate);
-  $('btnPlay').addEventListener('click', play);
-  $('btnStop').addEventListener('click', stop);
-
-  $('btnSeed').addEventListener('click', toggleSeed);
-  $('btnReset').addEventListener('click', resetGrid);
-
-  $('btnHelp').addEventListener('click', showHelp);
-  // Topbar duplicates (always accessible)
-  $('btnHelpTop')?.addEventListener('click', showHelp);
-  $('btnPickTop')?.addEventListener('click', pickFiles);
-  $('btnAnalyzeTop')?.addEventListener('click', analyzeAll);
-  $('btnGenTop')?.addEventListener('click', generate);
-  $('btnDbgTop')?.addEventListener('click', () => {
-    setCompact(false);
-    $('debugBox')?.classList.toggle('hidden');
+  // ---------- Wiring ----------
+  $("btnLoad").addEventListener("click", loadFiles);
+  $("fileInput").addEventListener("change", (e) => {
+    addFiles(Array.from(e.target.files || []));
+    e.target.value = "";
   });
-  $('btnPanicTop')?.addEventListener('click', async () => {
-    await engine.panic();
-    updateKV();
-    toast.show('Audio engine reset.');
+  $("btnClear").addEventListener("click", clearAll);
+
+  $("btnAnalyzeGenerate").addEventListener("click", analyzeAndGenerate);
+
+  $("btnPlay").addEventListener("click", async () => {
+    await ensureAudio();
+    if (audioCtx.state !== "running") await audioCtx.resume();
+    if (!state.isPlaying) startTransport();
   });
 
-  $('btnPlayTop')?.addEventListener('click', play);
-  $('btnStopTop')?.addEventListener('click', stop);
+  $("btnStop").addEventListener("click", () => stopTransport());
+  $("btnRecord").addEventListener("click", toggleRecord);
+  $("btnExport").addEventListener("click", openExportModal);
+  $("btnHidePanel").addEventListener("click", () => {
+    $("app").classList.toggle("hidden-left");
+  });
+  $("btnDebug").addEventListener("click", toggleDebug);
+  $("btnHelp").addEventListener("click", showHelp);
 
+  $("btnRandom").addEventListener("click", () => {
+    // Fix: randomize does not touch running nodes; safe during playback (no click)
+    randomizePattern();
+  });
+  $("btnResetGrid").addEventListener("click", resetPattern);
 
-  // Panel toggle (always available)
-  const btnSide = $('btnCompact');
-  if (btnSide) btnSide.addEventListener('click', toggleCompact);
-  const btnTop = $('btnCompactTop');
-  if (btnTop) btnTop.addEventListener('click', toggleCompact);
+  $("viewMode").addEventListener("change", (e) => {
+    state.viewMode = e.target.value;
+    setPlayingColumn(-1);
+  });
 
-  // ESC: show panel (useful on mobile). Ctrl/⌘+P toggles.
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape'){
-      setCompact(false);
-    }
-    if ((e.key === 'p' || e.key === 'P') && (e.metaKey || e.ctrlKey)){
+  $("modalBackdrop").addEventListener("click", (e) => {
+    if (e.target === $("modalBackdrop")) closeExportModal();
+  });
+  $("btnExportCancel").addEventListener("click", closeExportModal);
+  $("btnExportGo").addEventListener("click", exportNow);
+
+  // Keyboard in file list
+  fileListEl.addEventListener("keydown", async (e) => {
+    if (state.files.length === 0) return;
+
+    const max = state.files.length - 1;
+    if (e.key === "ArrowDown"){
       e.preventDefault();
-      toggleCompact();
+      state.selectedFileIndex = clamp(state.selectedFileIndex + 1, 0, max);
+      renderFileList();
+      scrollSelectedIntoView();
     }
-  });
-
-
-
-  $('btnDbg').addEventListener('click', () => {
-    $('debugBox').classList.toggle('hidden');
-  });
-
-  
-  // FX controls: live update (also works while playing)
-  const fxIds = [
-    'fxGlitchOn','fxGlitchMix','fxGlitchRate','fxGlitchStut','fxGlitchLen','fxGlitchCrush','fxGlitchDown','fxGlitchDrop',
-    'fxEqOn','fxEqLow','fxEqMid','fxEqHigh','fxEqMidFreq','fxOut',
-    'fxBreakMode','fxBreakIntensity','fxRepeatDiv','fxLPF','fxDelayDiv','fxDelaySend','fxDelayFb','fxDelayCut'
-  
-  ];
-  fxIds.forEach(id => {
-    const el = $(id);
-    if (!el) return;
-    el.addEventListener('input', applyFXFromUI);
-    el.addEventListener('change', applyFXFromUI);
-  });
-
-
-$('btnPanic').addEventListener('click', async () => {
-    await engine.panic();
-    updateKV();
-    toast.show('Audio engine reset.');
-  });
-
-  $('glyphSet').addEventListener('change', () => {
-    state.glyphSet = $('glyphSet').value;
-    updateLegend();
-    updateViewBarOptions();
-    buildGrid();
-    logger.log(`Glyph set: ${state.glyphSet}`);
-  });
-
-  
-  const viewBarSel = $('viewBar');
-  if (viewBarSel){
-    viewBarSel.addEventListener('change', () => {
-      state.viewBar = viewBarSel.value;
-      buildGrid();
-      logger.log(`View bar: ${state.viewBar}`);
-    });
-  }
-
-// Compact mode (hide sidebar)
-  
-
-  
-  function setCompact(isCompact){
-    document.body.classList.toggle('compact', !!isCompact);
-    try{ localStorage.setItem(window.innerWidth <= 900 ? 'tcseq_compact_m' : 'tcseq_compact_d', document.body.classList.contains('compact') ? '1' : '0'); }catch{}
-    const txt = document.body.classList.contains('compact') ? 'SHOW PANEL' : 'HIDE PANEL';
-    const b1 = $('btnCompact');
-    const b2 = $('btnCompactTop');
-    if (b1) b1.textContent = txt;
-    if (b2) b2.textContent = txt;
-  }
-
-  function toggleCompact(){
-    setCompact(!document.body.classList.contains('compact'));
-  }
-
-
-// Drag & drop
-  const dz = $('dropzone');
-  dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('drag'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
-  dz.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dz.classList.remove('drag');
-    if (e.dataTransfer?.files) addFiles(e.dataTransfer.files);
-  });
-
-  // Keyboard focus: global
-  window.addEventListener('keydown', handleKey);
-
-  // Cursor blink (DOS-ish)
-  setInterval(() => {
-    const grid = $('seqGrid');
-    if (!grid) return;
-    const cells = grid.querySelectorAll('.cell.cursor');
-    cells.forEach(el => el.classList.toggle('cursorBlink'));
-  }, 480);
-
-  // Boot
-  
-  // Compact preference is stored separately for mobile/desktop (so mobile doesn't break desktop workflow)
-  const isNarrow = () => window.innerWidth <= 900;
-  const keyForCompact = () => (isNarrow() ? 'tcseq_compact_m' : 'tcseq_compact_d');
-  const ensureCompactDefault = () => {
-    try{
-      const k = keyForCompact();
-      if (localStorage.getItem(k) === null){
-        // default: mobile compact ON, desktop compact OFF
-        localStorage.setItem(k, isNarrow() ? '1' : '0');
+    if (e.key === "ArrowUp"){
+      e.preventDefault();
+      state.selectedFileIndex = clamp(state.selectedFileIndex - 1, 0, max);
+      renderFileList();
+      scrollSelectedIntoView();
+    }
+    if (e.key === "Enter"){
+      e.preventDefault();
+      await previewFile(state.selectedFileIndex);
+    }
+    // 1-6 sets category quickly
+    if (/^[1-6]$/.test(e.key)){
+      const idx = Number(e.key) - 1;
+      const cat = CATS[idx];
+      const f = state.files[state.selectedFileIndex];
+      if (f){
+        f.category = cat;
+        f.override = true;
+        renderFileList();
+        updateVisualDistribution();
+        toast(`Set class: ${cat}`);
       }
-    }catch{}
-  };
-  const applyCompactPref = () => {
-    ensureCompactDefault();
-    try{
-      const v = localStorage.getItem(keyForCompact());
-      setCompact(v === '1');
-    }catch{
-      setCompact(isNarrow());
-    }
-  };
-
-  // Apply at startup and when crossing breakpoint
-  applyCompactPref();
-  let _prevNarrow = isNarrow();
-  window.addEventListener('resize', () => {
-    const now = isNarrow();
-    if (now !== _prevNarrow){
-      applyCompactPref();
-      _prevNarrow = now;
     }
   });
 
-(async () => {
-    logger.log('Boot.');
-    if (location.protocol === 'file:'){
-      logger.log('WARNING: file:// detected. Use localhost to avoid silent failures.', 'WARN');
-      $('noteLine').innerHTML = 'Warning: <b class="warn">file://</b> detected. Use <b>localhost</b> for reliable audio.';
-      toast.show('Warning: file:// detected. Use localhost (python3 -m http.server).', 6000);
-    }
+  function scrollSelectedIntoView(){
+    const sel = fileListEl.querySelector(".fileitem.selected");
+    if (sel) sel.scrollIntoView({block:"nearest"});
+  }
 
-    updateLegend();
-    renderFileList();
-    updateKV();
-    setCompact(document.body.classList.contains('compact'));
-    buildGrid();
-    renderInspector();
+  // Startup render
+  renderHeader();
+  renderGrid();
+  renderFileList();
+  updateVisualDistribution();
+  setStatus("ready", "load up to 200 files");
 
-    try{
-      // Lazy init: create context only after a user gesture, but we can show capability.
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx){
-        logger.log('No Web Audio API available.', 'ERR');
-        $('noteLine').textContent = 'This browser does not support Web Audio API.';
-      }else{
-        $('noteLine').textContent = 'Ready. Load → Analyze → Generate → Play. (Best on localhost)';
-      }
-    }catch(err){
-      logger.log(`Boot error: ${err.message || err}`, 'ERR');
-    }
-  })();
+  requestAnimationFrame(animLoop);
 })();
 </script>
 </body>
