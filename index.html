@@ -523,7 +523,7 @@
 
               <label class="mini" style="display:flex; gap:8px; align-items:center;">
                 DENS
-                <input id="density" type="range" min="0" max="100" value="58" style="width:110px;">
+                <input id="density" type="range" min="0" max="200" value="58" style="width:110px;">
               </label>
               <label class="mini" style="display:flex; gap:8px; align-items:center;">
                 GLITCH
@@ -1329,7 +1329,7 @@ for (let i=0;i<N;i++){
   }
 
   function applyDensity(density, rng, style){
-    // density: 0..100; adds/removes hits without altering audio graph (no playback pops)
+    // density: 0..200; adds/removes hits without altering audio graph (no playback pops)
     const d = density / 100;
 
     // Thin out if low density
@@ -1403,7 +1403,8 @@ for (let i=0;i<N;i++){
 
   const fighters = [];
   let geoRot = 0;
-  let ampSmooth = 0;
+  let geoTime = now();
+let ampSmooth = 0;
   let beatSmooth = 0;
   let mistPhase = 0;
 
@@ -2220,17 +2221,25 @@ for (let i=0;i<N;i++){
     const density = clamp(total/(ROWS*STEPS), 0, 1);
     const lead = Object.entries(dist).sort((a,b)=>b[1]-a[1])[0]?.[0] || "PERC/FX";
     const leadIdx = Math.max(0, CATS.indexOf(lead));
-    const ampRaw = rmsFromAnalyser();
-    // smooth amplitude for silkier visuals
-    ampSmooth = approach(ampSmooth, ampRaw, dt*0.008);
-    const amp = ampSmooth;
+    
+const ampRaw = rmsFromAnalyser();
+// smooth amplitude for silkier visuals
+ampSmooth = approach(ampSmooth, ampRaw, dt*0.008);
+const amp = ampSmooth;
+
+// If there is effectively no sound, keep pseudo-3D almost still.
+// (We gate motion on real audio amplitude, not sequencer density.)
+const act3 = clamp(amp * 80, 0, 1);            // 0..1
+const motion3 = (act3 > 0.02) ? (0.04 + 0.96*act3) : 0.006;
+const dt3 = dt * motion3;
+geoTime += dt3;
     const beat = clamp(density*0.95 + amp*0.75, 0, 1.5);
     beatSmooth = approach(beatSmooth, beat, dt*0.006);
 
     // variant changes with smoothing; no hard switch
-    const tt = now()/1000;
+    const tt = geoTime/1000;
     const GEO_VARIANTS = [0,1,2,3,4,5,6,7,8,9,20,21,22,23,24];
-    const desiredVariant = GEO_VARIANTS[(Math.floor(now()/1600) + leadIdx) % GEO_VARIANTS.length];
+    const desiredVariant = GEO_VARIANTS[(Math.floor(geoTime/1600) + leadIdx) % GEO_VARIANTS.length];
 
     // point count grows/shrinks smoothly with density + beat energy
     const desiredCount = clamp(Math.round(70 + density*80 + geoMorph.energy*18), 55, 160);
@@ -2254,12 +2263,12 @@ for (let i=0;i<N;i++){
 
     // morph progress (silky + amp/rhythm reactive)
     const targetSpeed = 980 / (1 + Math.min(1.2, geoMorph.energy)*0.70 + beatSmooth*0.95);
-    geoMorph._speed = (geoMorph._speed==null) ? targetSpeed : approach(geoMorph._speed, targetSpeed, dt*0.012);
-    geoMorph.t = clamp(geoMorph.t + dt / geoMorph._speed, 0, 1);
+    geoMorph._speed = (geoMorph._speed==null) ? targetSpeed : approach(geoMorph._speed, targetSpeed, dt3*0.012);
+    geoMorph.t = clamp(geoMorph.t + dt3 / geoMorph._speed, 0, 1);
     const e = easeInOut(geoMorph.t);
 
     // smoothly change visible point count so points "grow in"
-    geoMorph.visibleCount = approach(geoMorph.visibleCount, geoMorph.targetCount, dt*0.08);
+    geoMorph.visibleCount = approach(geoMorph.visibleCount, geoMorph.targetCount, dt3*0.08);
 
     const vc = Math.max(1, Math.floor(geoMorph.visibleCount));
     const fromN = geoMorph.from.length || 1;
@@ -2289,8 +2298,8 @@ for (let i=0;i<N;i++){
     }
 
     // rotation + mild warp
-    geoRot += dt*0.0012*(1 + amp*7);
-    geoMorph.energy = Math.max(0, geoMorph.energy*0.92 - dt*0.00025);
+    geoRot += dt3*0.0012*(1 + amp*7);
+    geoMorph.energy = Math.max(0, geoMorph.energy*0.92 - dt3*0.00025);
 
     function project(p){
       const z = p[2] + 3.6;
