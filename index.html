@@ -526,6 +526,20 @@
                 <input id="density" type="range" min="0" max="100" value="58" style="width:110px;">
               </label>
               <label class="mini" style="display:flex; gap:8px; align-items:center;">
+                GLITCH
+                <select id="glitchStyle">
+                  <option value="stutter">STUTTER</option>
+                  <option value="bitcrush">BITCRUSH</option>
+                  <option value="tear">TEAR</option>
+                </select>
+              </label>
+
+              <label class="mini" style="display:flex; gap:8px; align-items:center;">
+                AMT
+                <input id="glitchAmt" type="range" min="0" max="100" value="0" style="width:110px;" step="1">
+              </label>
+
+              <label class="mini" style="display:flex; gap:8px; align-items:center;">
                 BPM
                 <input id="bpmBar" type="range" min="60" max="220" value="170" style="width:140px;">
                 <span id="bpmVal" style="min-width:32px; text-align:right;">170</span>
@@ -636,6 +650,47 @@
     toast._tm = setTimeout(()=>{ t.style.display="none"; }, ms);
   };
 
+  // ---------- Glitch controls (only affects audio when AMT > 0) ----------
+  const __glitchParams = {
+    style: "stutter",
+    amt: 0.0
+  };
+
+  const __glitchStyleEl = $("glitchStyle");
+  const __glitchAmtEl = $("glitchAmt");
+
+  if (__glitchStyleEl){
+    __glitchStyleEl.addEventListener("change", e=>{
+      __glitchParams.style = String(e.target.value || "stutter");
+    });
+  }
+  
+  if (__glitchAmtEl){
+    const __applyGlitchAmt = () => {
+      // snap-to-zero to guarantee true bypass
+      let v = Number(__glitchAmtEl.value);
+      if (v <= 1) v = 0;
+      if (v !== Number(__glitchAmtEl.value)) __glitchAmtEl.value = String(v);
+
+      // linear mix; internal processor uses nonlinear scaling
+      const amt = clamp(v/100, 0, 1);
+      __glitchParams.amt = amt;
+
+      if (audioCtx && state._glitch && state._glitch.wet && state._glitch.dry){
+        const t = audioCtx.currentTime;
+        const mix = Math.pow(amt, 0.85);
+        state._glitch.wet.gain.setTargetAtTime(mix, t, 0.01);
+        state._glitch.dry.gain.setTargetAtTime(1-mix, t, 0.01);
+      }
+};
+
+    __glitchAmtEl.addEventListener("input", __applyGlitchAmt);
+    __glitchAmtEl.addEventListener("change", __applyGlitchAmt);
+    __glitchAmtEl.addEventListener("mouseup", __applyGlitchAmt);
+    __glitchAmtEl.addEventListener("touchend", __applyGlitchAmt, {passive:true});
+    setTimeout(__applyGlitchAmt, 0);
+  }
+
   function mulberry32(seed){
     let t = seed >>> 0;
     return function(){
@@ -697,11 +752,12 @@ let glitchNode = null;
 
   function createGlitchNode(ctx){
     // ScriptProcessor for broad compatibility; intentionally audible (requested "glitch" effect).
-    const node = ctx.createScriptProcessor(1024, 2, 2);
+    const node = ctx.createScriptProcessor(2048, 2, 2);
     let hold = 0;
     let holdL = 0, holdR = 0;
     let bits = 10;
     let stutter = 0;
+    let tearFrames = 0;
 
     node.onaudioprocess = (e) => {
       const in0 = e.inputBuffer.getChannelData(0);
@@ -709,20 +765,55 @@ let glitchNode = null;
       const out0 = e.outputBuffer.getChannelData(0);
       const out1 = e.outputBuffer.getChannelData(1);
 
-      for (let i=0;i<in0.length;i++){
-        let l = in0[i], r = in1[i];
+      const amt = (__glitchParams?.amt ?? 0);
+      if (amt === 0){
+        out0.set(in0);
+        out1.set(in1);
+        return;
+      }
+      const style = String(__glitchParams?.style ?? "stutter");
+      // make low AMT clearly audible
+      const a = Math.pow(amt, 0.55);
 
-        // random triggers (tuned to be noticeable but not constant)
-        if (stutter <= 0 && Math.random() < 0.0012){
-          stutter = 28 + ((Math.random()*110)|0);
-        }
-        if (hold <= 0 && Math.random() < 0.004){
-          hold = 6 + ((Math.random()*60)|0);
-          bits = 5 + ((Math.random()*7)|0);
-          holdL = l; holdR = r;
-        }
+      // style-dependent knobs
+      const pStutter = (style==="stutter" ? (0.00025 + 0.0022*a) : (style==="tear" ? (0.00015 + 0.0016*a) : 0));
+      const pHold    = (style==="stutter" ? (0.00055 + 0.0038*a) : (style==="tear" ? (0.00035 + 0.0030*a) : 0));
+      const pTear    = (style==="tear"   ? (0.00025 + 0.0025*a) : 0);
+      const crush    = (style==="bitcrush" ? 1 : 0);
 
-        if (stutter > 0){
+      // downsample factor for bitcrush (1..12)
+      const ds = 1 + Math.floor(11*a);
+
+      
+// --- per-block triggers (much lower CPU; avoids freezing on load/play) ---
+const N = in0.length;
+
+if (stutter <= 0 && pStutter > 0 && Math.random() < (pStutter * N)){
+  stutter = (10 + ((Math.random()*(40 + 260*a))|0));
+}
+if (hold <= 0 && pHold > 0 && Math.random() < (pHold * N)){
+  hold = (2 + ((Math.random()*(8 + 110*a))|0));
+  bits = clamp(10 - Math.floor(7*a) + ((Math.random()*2)|0), 3, 10);
+  // seed freeze from first sample of this block (stable)
+  holdL = in0[0]; holdR = in1[0];
+}
+if (tearFrames <= 0 && pTear > 0 && Math.random() < (pTear * N)){
+  tearFrames = 6 + ((Math.random()*(18 + 70*a))|0);
+}
+
+for (let i=0;i<N;i++){
+  let l = in0[i], r = in1[i];
+
+  if (tearFrames > 0){
+    l = -l; r = -r;
+    tearFrames--;
+  }
+
+        if (crush){
+          // bitcrush: downsample (sample-hold) based on AMT
+          if ((i % ds) === 0){ holdL = l; holdR = r; }
+          l = holdL; r = holdR;
+        } else if (stutter > 0){
           // micro-stutter / freeze
           l = holdL; r = holdR;
           stutter--;
@@ -755,9 +846,26 @@ let glitchNode = null;
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 1024;
     glitchNode = createGlitchNode(audioCtx);
+
+    // --- controllable wet/dry mix (no UI change) ---
+    const dry = audioCtx.createGain();
+    const wet = audioCtx.createGain();
+    const a0 = (__glitchParams?.amt ?? 0);
+    const m0 = Math.pow(a0, 0.85); // perceptual curve: more obvious at low AMT
+    wet.gain.value = m0;
+    dry.gain.value = 1 - m0;
+
+    master.connect(dry);
+    dry.connect(analyser);
+
     master.connect(glitchNode);
-    glitchNode.connect(analyser);
+    glitchNode.connect(wet);
+    wet.connect(analyser);
+
     analyser.connect(audioCtx.destination);
+
+    // for live updates from the AMT slider
+    state._glitch = {dry, wet};
 
     $("audioState").textContent = "audio: " + audioCtx.state;
     audioCtx.onstatechange = () => $("audioState").textContent = "audio: " + audioCtx.state;
@@ -1295,6 +1403,9 @@ let glitchNode = null;
 
   const fighters = [];
   let geoRot = 0;
+  let ampSmooth = 0;
+  let beatSmooth = 0;
+  let mistPhase = 0;
 
   // ---------- Visual step triggers + arcade scene + smooth geometry morph ----------
   const vis = {
@@ -1347,12 +1458,24 @@ let glitchNode = null;
       },
 
       reset(){
-        this.inited=true;
-        this.level=1; this.score=0; this.lives=3; this.kills=0; this.wave=0;
-        this.msg=""; this.msgT=0; this.shake=0; this.flash=0; this.scroll=0;
-        this.stars=[]; this.bullets=[]; this.enemies=[]; this.parts=[];
-        this.player={ x:0, y:0, vy:0, targetY:0, cd:0, superCd:0 };
-        this.recalc();
+
+this.inited=true;
+
+// keep existing counters (no UI changes)
+this.level=1; this.score=0; this.lives=3; this.kills=0; this.wave=0;
+this.msg=""; this.msgT=0; this.shake=0; this.flash=0;
+
+// racing state (repurpose the 8-bit scene)
+this.road = { z:0, curve:0, curveT:0, curveV:0, lanePhase:0 };
+this.player = { x:0, vx:0 }; // x in [-1..1] relative to road center
+
+// reuse arrays already referenced elsewhere; names kept to avoid breaking anything
+this.stars=[];        // unused (kept)
+this.bullets=[];      // unused (kept)
+this.enemies=[];      // opponent cars
+this.parts=[];        // roadside signs
+
+this.recalc();
       },
 
       levelUp(){
@@ -1412,364 +1535,283 @@ let glitchNode = null;
         }
       },
 
-      tick(dt, lx, ly, lw, lh, amp){
-        if (!this.inited) this.reset();
-        this.lx=lx; this.ly=ly; this.lw=lw; this.lh=lh;
+      // sequencer step callback (prevents animation crash; drives racing events)
+      onStep(evt){
+        // evt: {step, cats, hits, acc}
+        // Use step energy to add micro-events without affecting UI.
+        try{
+          const acc = evt?.acc || 0;
+          const hits = evt?.hits || 0;
 
-        this.recalc();
-
-        // starfield init
-        if (this.stars.length < 34){
-          while (this.stars.length < 34){
-            this.stars.push({x: Math.random()*lw, y: Math.random()*lh, sp: 0.15 + Math.random()*0.45, tw: Math.random()*Math.PI*2});
-          }
-        }
-        this.scroll += dt * (0.02 + this.level*0.001);
-        for (const s of this.stars){
-          s.x -= dt*s.sp*(0.025 + this.level*0.002);
-          s.tw += dt*0.004;
-          if (s.x < 0) { s.x += lw; s.y = Math.random()*lh; s.sp = 0.15 + Math.random()*0.55; }
-        }
-
-        // player movement (auto + beat-reactive; not a simple bob)
-        const p = this.player;
-        if (p.x === 0){
-          p.x = lx + 12;
-          p.y = ly + Math.floor(lh*0.55);
-          p.targetY = p.y;
-        }
-        const t = now();
-        const wander = Math.sin((t + this.level*300)*0.0022) * (2 + 6*this.density);
-        const beatNudge = (amp>0.012 ? (amp*60) : 0);
-        p.targetY = ly + Math.floor(lh*0.55 + wander + Math.sin(t*0.0016)*4 + beatNudge);
-        p.targetY = clamp(p.targetY, ly+16, ly+lh-18);
-        p.vy += (p.targetY - p.y) * 0.008;
-        p.vy *= 0.82;
-        p.y += p.vy;
-
-        p.cd = Math.max(0, p.cd - dt);
-        p.superCd = Math.max(0, p.superCd - dt);
-
-        // wave-like spawn (progressive difficulty)
-        const spawnRate = (0.45 + this.level*0.06) * (0.25 + this.density*1.2); // enemies/sec
-        this._spawnAcc = (this._spawnAcc || 0) + dt * spawnRate / 1000;
-        while (this._spawnAcc > 1){
-          this._spawnAcc -= 1;
-          const roll = Math.random();
-          let type = "scout";
-          if (this.level >= 4 && roll < 0.18) type = "brute";
-          if (this.level >= 6 && roll < 0.10) type = "glitch";
-          if (this.level % 8 === 0 && this.kills>0 && (this.kills % 32 === 0)) type = "boss";
-          this.spawnEnemy(type);
-        }
-
-        // enemies
-        for (const e of this.enemies){
-          e.t += dt;
-          e.x += e.vx * dt;
-          if (e.type==="glitch"){
-            e.y += Math.sin((now()+e.t)*0.02)*0.15;
-            if (Math.random() < 0.02) this.parts.push({x:e.x, y:e.y, vx:(Math.random()-0.5)*1.2, vy:(Math.random()-0.5)*1.0, life:220});
-          }
-        }
-
-        // bullets
-        for (const b of this.bullets){
-          b.x += b.vx * dt;
-          b.life -= dt;
-        }
-
-        // collisions
-        const hit = (b,e) => (Math.abs(b.x - e.x) < (e.sz+2) && Math.abs(b.y - e.y) < (e.sz+2));
-        for (const b of this.bullets){
-          if (b.life <= 0) continue;
-          for (const e of this.enemies){
-            if (e.hp <= 0) continue;
-            if (hit(b,e)){
-              e.hp -= b.pow;
-              b.life = 0;
-              this.shake = Math.max(this.shake, 0.25 + 0.12*b.pow);
-              for (let i=0;i<6;i++){
-                this.parts.push({x:e.x, y:e.y, vx:(Math.random()-0.5)*1.2, vy:(Math.random()-0.5)*1.0, life:260+Math.random()*220});
-              }
-              if (e.hp <= 0){
-                this.kills++;
-                this.score += (e.type==="boss") ? 400 : (e.type==="brute" ? 60 : (e.type==="glitch" ? 50 : 25));
-                this.flash = Math.max(this.flash, 0.35);
-                const thresh = 10 + this.level*6;
-                if (this.kills % thresh === 0) this.levelUp();
-              }
-              break;
+          // brief shake/flash on strong hits (flash is used as subtle overlay in this scene)
+          if (acc > 0.65 || hits >= 2){
+            this.shake = Math.max(this.shake, 0.25 + 0.25*acc);
+            // message occasionally
+            if (Math.random() < 0.08){
+              this.msg = "BOOST";
+              this.msgT = 420;
             }
           }
-        }
 
-        // enemy reaches left => damage
-        for (const e of this.enemies){
-          if (e.hp>0 && e.x < lx+10){
-            e.hp = 0;
-            this.lives--;
-            this.shake = Math.max(this.shake, 0.8);
-            this.flash = Math.max(this.flash, 0.6);
-            this.msg = "HIT!";
-            this.msgT = 700;
-            if (this.lives <= 0){
-              this.lives = 3;
-              this.level = 1;
-              this.kills = 0;
-              this.score = 0;
-              this.enemies = [];
-              this.bullets = [];
-              this.parts = [];
-              this.msg = "RESTART";
-              this.msgT = 1200;
-            }
+          // nudge curve target on accented steps for rhythmic steering
+          if (acc > 0.35){
+            const dir = (Math.random()<0.5?-1:1);
+            this.road.curveT = clamp(this.road.curveT + dir*(0.04 + 0.10*acc), -0.85, 0.85);
           }
-        }
 
-        // cleanup
-        this.enemies = this.enemies.filter(e => e.x > lx-40 && e.hp>0);
-        this.bullets = this.bullets.filter(b => b.life>0 && b.x < lx+lw+20);
-        for (const pt of this.parts){
-          pt.x += pt.vx * dt;
-          pt.y += pt.vy * dt;
-          pt.life -= dt;
-        }
-        this.parts = this.parts.filter(pt => pt.life > 0);
-
-        // decay FX
-        this.shake *= 0.9;
-        this.flash *= 0.86;
-        this.msgT = Math.max(0, this.msgT - dt);
+          // occasional burst of opponents on dense percussion
+          if (hits >= 3 && Math.random() < 0.10 && this.enemies.length < 9){
+            const lane = (Math.random()<0.5) ? -1 : 1;
+            const x = lane*(0.25 + Math.random()*0.18);
+            this.enemies.push({x, y:-1.2, sp: 1.05 + 0.65*Math.random(), col: (Math.random()<0.5) ? "#ff5a5a" : "#5affa8"});
+          }
+        }catch(e){}
       },
 
-      onStep(evt){
-        const k = evt.cats["KICK"] || 0;
-        const b = evt.cats["BASS"] || 0;
-        const s = evt.cats["SNARE"] || 0;
-        const c = evt.cats["CLAP"] || 0;
-        const h = evt.cats["HAT"] || 0;
-        const p = evt.cats["PERC/FX"] || 0;
+      tick(dt, lx, ly, lw, lh, amp){
 
-        if (k || b){
-          const pow = (k===3||b===3) ? 3 : (k===2||b===2) ? 2 : 1;
-          const mode = (b===3) ? "beam" : "shot";
-          this.fire(pow, mode);
-        }
-        if (s || c){
-          const mode = (s===3||c===3) ? "spread" : "shot";
-          this.fire((s===3||c===3) ? 2 : 1, mode);
-          if (this.enemies.length < 8 + this.level*1.2){
-            const type =
-                       (this.level >= 8 && (s===3||c===3) && Math.random()<0.22) ? "worm"
-                       : (this.level >= 7 && (s===3||c===3) && Math.random()<0.28) ? "glitch"
-                       : (this.level >= 6 && Math.random()<0.22) ? "drone"
-                       : (this.level >= 5 && Math.random()<0.18) ? "zigzag"
-                       : (this.level >= 4 && Math.random()<0.20) ? "brute"
-                       : (this.level >= 3 && Math.random()<0.14) ? "mine"
-                       : "scout";
-            this.spawnEnemy(type);
-          }
-        }
-        
-        // extra 8-bit interactions (more variety)
-        if (h===3){
-          // Meteor shower: fast obstacles + big FX
-          this.msg = "METEOR SHOWER";
-          this.msgT = 0.9;
-          this.flash = Math.min(1, this.flash + 0.55);
-          this.shake = Math.min(10, this.shake + 6);
-          for (let i=0;i<3;i++) this.spawnEnemy("meteor");
-        } else if (h===2 && Math.random() < 0.35){
-          this.spawnEnemy("zigzag");
-        }
+if (!this.inited) this.reset();
+this.lx=lx; this.ly=ly; this.lw=lw; this.lh=lh;
 
-        if (b===3 && Math.random() < 0.7){
-          this.msg = "DRONE SWARM";
-          this.msgT = 0.7;
-          this.spawnEnemy("drone");
-          if (Math.random() < 0.35) this.spawnEnemy("drone");
-        }
+// density + lead extraction stays as-is
+this.recalc();
 
-        if ((k===3 || c===3) && Math.random() < 0.35){
-          // Mines create tense lanes
-          this.spawnEnemy("mine");
-        }
-if (p===3){
-          this.bomb();
-        } else if (p){
-          this.shake = Math.max(this.shake, 0.15 + 0.1*p);
-        }
-        if (h){
-          this.player.vy += (Math.random()<0.5?-1:1) * (0.18*h);
-        }
+const dens = this.density || 0;
+const a = clamp((amp||0)*50, 0, 1); // normalize analyser rms-ish
+
+// silky speed: stable base + rhythm response
+const speed = 0.85 + 1.55*dens + 1.15*a;
+const dz = dt * speed;
+
+// curve target slowly wanders; stronger when dense
+if (((now()|0) % 900) < dt){
+  this.road.curveT = clamp((Math.random()*2 - 1) * (0.18 + 0.60*dens), -0.85, 0.85);
+}
+// smooth curve (critical for silky track)
+const k = 0.0008 + 0.0020*dens;
+this.road.curveV = approach(this.road.curveV, this.road.curveT, dt*k);
+this.road.curve  = approach(this.road.curve,  this.road.curveV, dt*(k*0.85));
+
+this.road.lanePhase = (this.road.lanePhase + dz*0.020) % 1;
+this.road.z += dz;
+
+// auto-steer from sequencer lead (keeps it "alive" without UI changes)
+const leadIdx = Math.max(0, CATS.indexOf(this.lead || "PERC/FX"));
+const steer = ((leadIdx % 3) - 1) * 0.18; // -0.18, 0, +0.18
+const targetX = clamp(steer + (Math.sin(now()*0.0011)*0.08*a), -0.85, 0.85);
+this.player.vx = approach(this.player.vx, (targetX - this.player.x)*0.06, dt*0.002);
+this.player.x  = clamp(this.player.x + this.player.vx, -0.92, 0.92);
+
+// spawn opponent cars (stored in enemies[])
+const spawnP = dt * (0.00060 + 0.00140*dens + 0.00100*a);
+if (Math.random() < spawnP && this.enemies.length < 10){
+  const lane = (Math.random()<0.5) ? -1 : 1;
+  const x = lane*(0.25 + Math.random()*0.20) + (Math.random()*0.08 - 0.04);
+  this.enemies.push({
+    x, y:-1.2,
+    sp: 0.65 + Math.random()*0.65 + dens*0.45,
+    col: (Math.random()<0.5) ? "#ff5a5a" : "#5affa8"
+  });
+}
+
+// spawn roadside props (stored in parts[])
+const signP = dt * (0.00038 + 0.00095*dens);
+if (Math.random() < signP && this.parts.length < 14){
+  const side = (Math.random()<0.5) ? -1 : 1;
+  this.parts.push({ side, y:-1.1, kind: (Math.random()<0.5) ? "BILL" : "CONE" });
+}
+
+// update opponent cars
+for (const c of this.enemies){
+  c.y += (dz*0.0016) * c.sp;
+}
+// update props
+for (const p of this.parts){
+  p.y += (dz*0.0012) * (0.95 + dens);
+}
+
+// scoring / cleanup
+this.enemies = this.enemies.filter(c=>{
+  if (c.y > 1.25){ this.score += 10; return false; }
+  return true;
+});
+this.parts = this.parts.filter(p=> p.y < 1.25);
+
+// collision (simple boxes in normalized space)
+for (const c of this.enemies){
+  const dx = Math.abs(c.x - this.player.x);
+  const dy = Math.abs(c.y - 0.80);
+  if (dx < 0.18 && dy < 0.10){
+    
+    this.shake = Math.max(this.shake, 0.55);
+    this.msg = "CRASH!";
+    this.msgT = 650;
+    c.y += 0.20;
+    c.x += (Math.random()<0.5?-1:1)*0.12;
+  }
+}
+
+// decay
+
+this.shake = Math.max(0, this.shake - dt*0.0016);
+if (this.msgT > 0) this.msgT -= dt;
       },
 
       render(g, lx, ly, lw, lh){
-        const drawSpr = (x,y,rows,scale=1) => {
-          g.fillStyle = "#111417";
-          for (let r=0;r<rows.length;r++){
-            const row = rows[r];
-            for (let c=0;c<row.length;c++){
-              if (row[c] === "#"){
-                g.fillRect(x + c*scale, y + r*scale, scale, scale);
-              }
-            }
-          }
-        };
 
-        // screen shake in LCD coords
-        const sh = this.shake;
-        const ox = Math.round((Math.random()-0.5) * sh * 4);
-        const oy = Math.round((Math.random()-0.5) * sh * 3);
+      // ---- retro racing render (NO halos; retro console track) ----
+      const ox = (this.shake>0)? ((Math.random()-0.5)*this.shake*3) : 0;
+      const oy = (this.shake>0)? ((Math.random()-0.5)*this.shake*3) : 0;
 
-        g.save();
-        g.translate(ox, oy);
+      // hard black background
+      g.fillStyle = "#000";
+      g.fillRect(lx, ly, lw, lh);
 
-        if (this.flash > 0.02){
-          g.fillStyle = `rgba(255,255,255,${0.07*this.flash})`;
-          g.fillRect(lx, ly, lw, lh);
+      // horizon + perspective parameters
+      const horizon = (ly + lh*0.28)|0;
+      const roadWTop = lw*0.18;
+      const roadWBot = lw*0.92;
+      const curvePx = (this.road?.curve ?? 0) * (lw*0.22);
+
+      // scanline road for crisp "8-bit" feel
+      for (let yy=0; yy<lh; yy++){
+        const y = ly + yy;
+        if (y < horizon) continue;
+
+        const t = (yy / lh);
+        const persp = Math.pow(t, 1.75);
+        const w = roadWTop + (roadWBot - roadWTop) * persp;
+        const cx = (lx + lw*0.5 + curvePx * Math.pow(t, 2.0)) + ox;
+        const x0 = (cx - w*0.5)|0;
+        const x1 = (cx + w*0.5)|0;
+
+        // outside (dark, subtle texture)
+        g.fillStyle = (((yy + (((this.road?.z ?? 0)*0.02)|0)) & 8) ? "#050505" : "#080808");
+        if (x0 > lx) g.fillRect(lx, y, x0-lx, 1);
+        if (x1 < lx+lw) g.fillRect(x1, y, (lx+lw)-x1, 1);
+
+        // road surface
+        g.fillStyle = (((yy + (((this.road?.z ?? 0)*0.04)|0)) & 12) ? "#101010" : "#0d0d0d");
+        g.fillRect(x0, y, Math.max(0, x1-x0), 1);
+
+        // edge lines
+        g.fillStyle = "#2e2e2e";
+        g.fillRect(x0, y, 1, 1);
+        g.fillRect(x1-1, y, 1, 1);
+
+        // lane dashes
+        const dash = ((yy*0.12 + (this.road?.z ?? 0)*0.010) % 22) < (6 + 10*t);
+        if (dash){
+          g.fillStyle = "#cfcfcf";
+          g.fillRect((cx|0), y, 1, 1);
         }
-
-        // stars (scrolling background)
-        g.fillStyle = "rgba(0,0,0,0.45)";
-        for (const s of this.stars){
-          const tw = 0.5 + 0.5*Math.sin(s.tw);
-          if (tw > 0.52) g.fillRect(lx + (s.x|0), ly + (s.y|0), 1, 1);
-        }
-
-        // subtle platform line
-        g.fillStyle = "rgba(0,0,0,0.18)";
-        g.fillRect(lx+8, ly+lh-14, lw-16, 1);
-
-        // player ship
-        const ship = [
-          "..#.....",
-          ".###....",
-          "#####...",
-          ".###....",
-          "..#.....",
-          "...#....",
-        ];
-        drawSpr(this.player.x|0, this.player.y|0, ship, 1);
-
-        // bullets
-        g.fillStyle = "#111417";
-        for (const b of this.bullets){
-          const x = b.x|0, y = b.y|0;
-          g.fillRect(x, y, 2, 1);
-          if (b.pow >= 2) g.fillRect(x, y-1, 1, 3);
-        }
-
-        // aliens
-        const alienA = [
-          ".###.",
-          "#####",
-          "#.#.#",
-          "#####",
-          ".#.#.",
-        ];
-        const alienB = [
-          ".####.",
-          "######",
-          "##..##",
-          "######",
-          ".#..#.",
-          "..##..",
-        ];
-        const alienG = [
-          ".#.#.",
-          "#####",
-          "#...#",
-          "#####",
-          ".###.",
-        ];
-        const boss = [
-          "..#####..",
-          ".#######.",
-          "###.#.###",
-          "#########",
-          "##.###.##",
-          ".##...##.",
-        ];
-
-        
-        const droneSpr = [
-          "..#..",
-          ".###.",
-          "#####",
-          ".#.#.",
-          "..#..",
-        ];
-        const mineSpr = [
-          ".###.",
-          "#####",
-          "##.##",
-          "#####",
-          ".###.",
-        ];
-        const zigSpr = [
-          "##..#",
-          ".###.",
-          "#..##",
-          ".###.",
-          "#..##",
-        ];
-        const wormSpr = [
-          "##..",
-          ".##.",
-          "..##",
-          ".##.",
-        ];
-for (const e of this.enemies){
-          const x = (e.x|0), y = (e.y|0);
-          let spr = alienA;
-          if (e.type==="brute") spr = alienB;
-          if (e.type==="glitch") spr = alienG;
-          if (e.type==="drone") spr = droneSpr;
-          if (e.type==="mine") spr = mineSpr;
-          if (e.type==="zigzag") spr = zigSpr;
-          if (e.type==="worm") spr = wormSpr;
-          if (e.type==="boss") spr = boss;
-          drawSpr(x, y, spr, 1);
-          if (e.maxHp > 1){
-            g.fillStyle = "rgba(0,0,0,0.35)";
-            g.fillRect(x, y-3, spr[0].length, 1);
-            const fillW = Math.round((spr[0].length) * clamp(e.hp/e.maxHp,0,1));
-            g.fillStyle = "#111417";
-            g.fillRect(x, y-3, fillW, 1);
-          }
-        }
-
-        // particles
-        g.fillStyle = "rgba(0,0,0,0.35)";
-        for (const pt of this.parts){
-          g.fillRect(pt.x|0, pt.y|0, 1, 1);
-        }
-
-        // tiny HUD (pseudo-text)
-        const textTiny = (x,y,str) => {
-          g.fillStyle = "rgba(0,0,0,0.55)";
-          for (let i=0;i<str.length;i++){
-            const ch = str.charCodeAt(i);
-            const bits = (ch ^ (ch>>3)) & 0xff;
-            for (let b=0;b<6;b++){
-              if (bits & (1<<b)) g.fillRect(x + i*4 + (b%3), y + (b>2?1:0), 1, 1);
-            }
-          }
-        };
-        textTiny(lx+10, ly+6, `LV${String(this.level).padStart(2,"0")}`);
-        textTiny(lx+34, ly+6, `HP${this.lives}`);
-        textTiny(lx+10, ly+lh-10, `SC${String(this.score).padStart(4,"0")}`);
-
-        if (this.msgT > 0 && this.msg){
-          g.fillStyle = "rgba(0,0,0,0.25)";
-          g.fillRect(lx+Math.floor(lw/2)-22, ly+Math.floor(lh/2)-3, 44, 7);
-          textTiny(lx+Math.floor(lw/2)-18, ly+Math.floor(lh/2)-1, this.msg);
-        }
-
-        g.restore();
       }
+
+      // tiny sprite helper (kept local so we don't change global helpers/UI)
+      const drawSpr = (x,y,rows,scale=1,color="#cfcfcf",hi="#ffffff") => {
+        for (let j=0;j<rows.length;j++){
+          for (let i=0;i<rows[j].length;i++){
+            const ch = rows[j][i];
+            if (ch === "#"){ g.fillStyle = color; g.fillRect(x+i*scale, y+j*scale, scale, scale); }
+            if (ch === "*"){ g.fillStyle = hi;    g.fillRect(x+i*scale, y+j*scale, scale, scale); }
+          }
+        }
+      };
+
+      // roadside props
+      for (const s of (this.parts||[])){
+        const t = (s.y + 1) / 2;
+        const y = horizon + (lh*0.72)*t;
+        const persp = Math.pow((y-ly)/lh, 1.75);
+        const w = roadWTop + (roadWBot - roadWTop) * persp;
+        const cx = (lx + lw*0.5 + curvePx * Math.pow((y-ly)/lh, 2.0)) + ox;
+        const side = (s.side<0) ? -1 : 1;
+        const sx = (cx + side*(w*0.54))|0;
+
+        if (s.kind === "BILL"){
+          drawSpr(sx, (y-2)|0, ["####","*##*","####"], 1, "#777", "#fff");
+        } else {
+          drawSpr(sx, (y-2)|0, [".#.","###",".#."], 1, "#ffcc55", "#fff");
+        }
+      }
+
+      
+// opponent cars (simple but car-shaped)
+const carOpp = [
+  ".###.",
+  "#####",
+  "#***#",
+  "#####",
+  "o###o",
+];
+      for (const c of (this.enemies||[])){
+        const t = (c.y + 1) / 2;
+        const y = horizon + (lh*0.72)*t;
+        const persp = Math.pow((y-ly)/lh, 1.65);
+        const w = roadWTop + (roadWBot - roadWTop) * persp;
+        const cx = (lx + lw*0.5 + curvePx * Math.pow((y-ly)/lh, 2.0)) + ox;
+        const x = cx + c.x * (w*0.38);
+
+        const scale = Math.max(1, (1 + (persp*2))|0);
+        drawSpr((x - 2*scale)|0, (y - 3*scale)|0, carOpp, scale, (c.col||"#ff5a5a"), "#fff");
+      }
+
+      
+// player car (Ferrari-like retro pixel art; high detail; no logo)
+// chars: # body, * highlight, o wheels, w windshield
+const carMe = [
+  "....***.........",
+  "...#####........",
+  "..########......",
+  ".####ww####.....",
+  "###wwwwww###....",
+  "#############...",
+  "##***####***##..",
+  "##..######..##..",
+  "o#..######..#o..",
+  "o##.######.##o..",
+  ".############...",
+  "..##*******##...",
+  "...###...###....",
+];
+
+// local sprite helper override for multi-color (only inside 8-bit panel)
+const drawSprCar = (x,y,rows,scale=1) => {
+  for (let j=0;j<rows.length;j++){
+    const row = rows[j];
+    for (let i=0;i<row.length;i++){
+      const ch = row[i];
+      if (ch === ".") continue;
+      if (ch === "#") g.fillStyle = "#ff2a2a";               // Ferrari red body
+      else if (ch === "*") g.fillStyle = "#ffffff";          // highlight
+      else if (ch === "o") g.fillStyle = "#1a1a1a";          // tires
+      else if (ch === "w") g.fillStyle = "#7bd4ff";          // windshield
+      else g.fillStyle = "#cfcfcf";
+      g.fillRect(x+i*scale, y+j*scale, scale, scale);
+    }
+  }
+};
+
+const meY = (ly + lh*0.80)|0;
+const meCX = (lx + lw*0.5 + curvePx) + ox;
+const meX = meCX + (this.player?.x ?? 0) * (roadWBot*0.18);
+
+drawSprCar((meX - 7)|0, (meY - 6)|0, carMe, 1);
+
+      // HUD (minimal, same panel)
+      g.fillStyle = "#cfcfcf";
+      g.font = "10px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+      g.fillText("RACE", lx+6, ly+12);
+      g.fillText("SPD " + (Math.floor((0.85 + 1.55*(this.density||0))*99)), lx+6, ly+24);
+      g.fillText("SCR " + (this.score||0), lx+6, ly+36);
+
+      if ((this.msgT||0) > 0){
+        g.fillStyle = "#fff";
+        g.fillText(this.msg||"", (lx + lw*0.5 - (this.msg||"").length*3)|0, (ly + lh*0.18)|0);
+      }
+
+      }
+
     };
     return G;
   })();
@@ -1890,8 +1932,12 @@ for (const e of this.enemies){
     for (let i=0;i<count;i++){
       const u = i / count;
       const p = geoShapePoint(variant, u, tt);
-      const j = 0.06*Math.sin((i*17.13) + tt*1.7);
-      pts[i] = {x:p[0] + j, y:p[1] - j*0.7, z:p[2] + j*0.5, a:1};
+      const baseJ = 0.06*Math.sin((i*17.13) + tt*1.7);
+      const e = (geoMorph && geoMorph.energy) ? geoMorph.energy : 0;
+      const w1 = 0.05*e*Math.sin((i*7.77) + tt*2.6);
+      const w2 = 0.035*e*Math.sin((i*3.31) - tt*3.4);
+      const j = baseJ + w1 - w2;
+      pts[i] = {x:p[0] + j, y:p[1] - j*0.7 + w2*0.6, z:p[2] + j*0.5 + w1*0.4, a:1};
     }
     return pts;
   }
@@ -2041,6 +2087,8 @@ for (const e of this.enemies){
       g.fillRect(lx, y, lw, 1);
     }
 
+    // (mist / glow overlay disabled)
+
     // scale to main canvas with pixelated look
     ctxFight.imageSmoothingEnabled = false;
     ctxFight.clearRect(0,0,cvFight.width,cvFight.height);
@@ -2065,7 +2113,12 @@ for (const e of this.enemies){
     const density = clamp(total/(ROWS*STEPS), 0, 1);
     const lead = Object.entries(dist).sort((a,b)=>b[1]-a[1])[0]?.[0] || "PERC/FX";
     const leadIdx = Math.max(0, CATS.indexOf(lead));
-    const amp = rmsFromAnalyser();
+    const ampRaw = rmsFromAnalyser();
+    // smooth amplitude for silkier visuals
+    ampSmooth = approach(ampSmooth, ampRaw, dt*0.008);
+    const amp = ampSmooth;
+    const beat = clamp(density*0.95 + amp*0.75, 0, 1.5);
+    beatSmooth = approach(beatSmooth, beat, dt*0.006);
 
     // variant changes with smoothing; no hard switch
     const tt = now()/1000;
@@ -2092,9 +2145,10 @@ for (const e of this.enemies){
       if (!geoMorph.visibleCount) geoMorph.visibleCount = desiredCount;
     }
 
-    // morph progress
-    const speed = 700 / (1 + Math.min(1.2, geoMorph.energy)*0.9);
-    geoMorph.t = clamp(geoMorph.t + dt / speed, 0, 1);
+    // morph progress (silky + amp/rhythm reactive)
+    const targetSpeed = 980 / (1 + Math.min(1.2, geoMorph.energy)*0.70 + beatSmooth*0.95);
+    geoMorph._speed = (geoMorph._speed==null) ? targetSpeed : approach(geoMorph._speed, targetSpeed, dt*0.012);
+    geoMorph.t = clamp(geoMorph.t + dt / geoMorph._speed, 0, 1);
     const e = easeInOut(geoMorph.t);
 
     // smoothly change visible point count so points "grow in"
