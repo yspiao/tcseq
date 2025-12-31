@@ -1459,23 +1459,71 @@ for (let i=0;i<N;i++){
 
       reset(){
 
-this.inited=true;
+      this.inited=true;
 
-// keep existing counters (no UI changes)
-this.level=1; this.score=0; this.lives=3; this.kills=0; this.wave=0;
-this.msg=""; this.msgT=0; this.shake=0; this.flash=0;
+      // keep counters/UI text
+      this.level=1; this.score=0; this.lives=3; this.kills=0; this.wave=0;
+      this.msg=""; this.msgT=0; this.shake=0; this.flash=0;
 
-// racing state (repurpose the 8-bit scene)
-this.road = { z:0, curve:0, curveT:0, curveV:0, lanePhase:0 };
-this.player = { x:0, vx:0 }; // x in [-1..1] relative to road center
+      // racing state
+      this.road = { z:0, curve:0, curveT:0, curveV:0, lanePhase:0 };
+      this.player = { x:0, vx:0 };
 
-// reuse arrays already referenced elsewhere; names kept to avoid breaking anything
-this.stars=[];        // unused (kept)
-this.bullets=[];      // unused (kept)
-this.enemies=[];      // opponent cars
-this.parts=[];        // roadside signs
+      // arrays kept for compatibility
+      this.stars=[];
+      this.bullets=[];
+      this.enemies=[];   // opponent cars
+      this.parts=[];     // roadside props
 
-this.recalc();
+      // side planets (both sides)
+      this.sidePlanets = [];
+      {
+        const rng = mulberry32(424242);
+        const count = 14;
+        for (let i=0;i<count;i++){
+          const side = (rng()<0.5) ? -1 : 1;
+          this.sidePlanets.push({
+            side,
+            y: -1.2 - rng()*1.9,
+            r: 6 + rng()*12,
+            saturn: (rng()<0.24),
+          });
+        }
+      }
+
+      // Milky Way background stars: white pixel dust on black. Only stars have breathing haze.
+      this.mwStars = [];
+      {
+        const rng = mulberry32(1337);
+        const N = 820; // still light
+        for (let i=0;i<N;i++){
+          const x = rng();
+          const y = rng();
+          // diagonal band density (Milky Way)
+          const a = -0.35, b = 0.62;
+          const d = Math.abs(a*x - y + b) / Math.sqrt(a*a + 1);
+          const band = Math.exp(-(d*d)/(0.010));
+          const p = 0.10 + 0.95*band;
+          if (rng() < p){
+            const halo = (rng() < (0.26 + 0.30*band));
+            const br = (0.18 + 0.82*(0.35 + 0.65*band)) * (0.55 + 0.85*rng());
+            const a0 = 0.08 + 0.58*br;
+            this.mwStars.push({x,y,a:a0,halo});
+          }
+        }
+        // small clusters
+        for (let k=0;k<26;k++){
+          const cx = 0.15 + rng()*0.70;
+          const cy = 0.20 + rng()*0.60;
+          for (let j=0;j<10;j++){
+            const x = clamp(cx + (rng()-0.5)*0.028, 0, 1);
+            const y = clamp(cy + (rng()-0.5)*0.028, 0, 1);
+            this.mwStars.push({x,y,a:0.10 + 0.18*rng(),halo:(rng()<0.30)});
+          }
+        }
+      }
+
+      this.recalc();
       },
 
       levelUp(){
@@ -1570,102 +1618,130 @@ this.recalc();
 
       tick(dt, lx, ly, lw, lh, amp){
 
-if (!this.inited) this.reset();
-this.lx=lx; this.ly=ly; this.lw=lw; this.lh=lh;
+      if (!this.inited) this.reset();
+      this.lx=lx; this.ly=ly; this.lw=lw; this.lh=lh;
 
-// density + lead extraction stays as-is
-this.recalc();
+      // density + lead extraction stays as-is
+      this.recalc();
 
-const dens = this.density || 0;
-const a = clamp((amp||0)*50, 0, 1); // normalize analyser rms-ish
+      const dens = this.density || 0;
+      const act = clamp((amp||0)*70, 0, 1); // audio activity
 
-// silky speed: stable base + rhythm response
-const speed = 0.85 + 1.55*dens + 1.15*a;
-const dz = dt * speed;
+      // speed reacts to density+audio; motion gates silence
+      const speed = 0.85 + 1.55*dens + 1.15*act;
+      const motion = (act > 0.02) ? (0.05 + 0.95*act) : 0.004; // near-static in silence
+      const dz = dt * speed * motion;
 
-// curve target slowly wanders; stronger when dense
-if (((now()|0) % 900) < dt){
-  this.road.curveT = clamp((Math.random()*2 - 1) * (0.18 + 0.60*dens), -0.85, 0.85);
-}
-// smooth curve (critical for silky track)
-const k = 0.0008 + 0.0020*dens;
-this.road.curveV = approach(this.road.curveV, this.road.curveT, dt*k);
-this.road.curve  = approach(this.road.curve,  this.road.curveV, dt*(k*0.85));
+      // curve target wanders only when there's sound
+      if (act > 0.02 && (((now()|0) % 900) < dt)){
+        this.road.curveT = clamp((Math.random()*2 - 1) * (0.18 + 0.60*dens), -0.85, 0.85);
+      }
+      // smooth curve always (but dz tiny => looks static)
+      const k = 0.0008 + 0.0020*dens;
+      this.road.curveV = approach(this.road.curveV, this.road.curveT, dt*k);
+      this.road.curve  = approach(this.road.curve,  this.road.curveV, dt*(k*0.85));
 
-this.road.lanePhase = (this.road.lanePhase + dz*0.020) % 1;
-this.road.z += dz;
+      this.road.lanePhase = (this.road.lanePhase + dz*0.020) % 1;
+      this.road.z += dz;
 
-// auto-steer from sequencer lead (keeps it "alive" without UI changes)
-const leadIdx = Math.max(0, CATS.indexOf(this.lead || "PERC/FX"));
-const steer = ((leadIdx % 3) - 1) * 0.18; // -0.18, 0, +0.18
-const targetX = clamp(steer + (Math.sin(now()*0.0011)*0.08*a), -0.85, 0.85);
-this.player.vx = approach(this.player.vx, (targetX - this.player.x)*0.06, dt*0.002);
-this.player.x  = clamp(this.player.x + this.player.vx, -0.92, 0.92);
+      // auto-steer (subtle) — motion is tiny in silence so it won’t “drift”
+      const leadIdx = Math.max(0, CATS.indexOf(this.lead || "PERC/FX"));
+      const steer = ((leadIdx % 3) - 1) * 0.18;
+      const targetX = clamp(steer + (Math.sin(now()*0.0011)*0.08*act), -0.85, 0.85);
+      this.player.vx = approach(this.player.vx, (targetX - this.player.x)*0.06, dt*0.002);
+      this.player.x  = clamp(this.player.x + this.player.vx, -0.92, 0.92);
 
-// spawn opponent cars (stored in enemies[])
-const spawnP = dt * (0.00060 + 0.00140*dens + 0.00100*a);
-if (Math.random() < spawnP && this.enemies.length < 10){
-  const lane = (Math.random()<0.5) ? -1 : 1;
-  const x = lane*(0.25 + Math.random()*0.20) + (Math.random()*0.08 - 0.04);
-  this.enemies.push({
-    x, y:-1.2,
-    sp: 0.65 + Math.random()*0.65 + dens*0.45,
-    col: (Math.random()<0.5) ? "#ff5a5a" : "#5affa8"
-  });
-}
+      // spawn only when audible (otherwise truly quiet)
+      if (act > 0.02){
+        const spawnP = dt * (0.00060 + 0.00140*dens + 0.00100*act);
+        if (Math.random() < spawnP && this.enemies.length < 10){
+          const lane = (Math.random()<0.5) ? -1 : 1;
+          const x = lane*(0.25 + Math.random()*0.20) + (Math.random()*0.08 - 0.04);
+          this.enemies.push({ x, y:-1.2, sp: 0.65 + Math.random()*0.65 + dens*0.45, col: (Math.random()<0.5) ? "#ff5a5a" : "#5affa8" });
+        }
 
-// spawn roadside props (stored in parts[])
-const signP = dt * (0.00038 + 0.00095*dens);
-if (Math.random() < signP && this.parts.length < 14){
-  const side = (Math.random()<0.5) ? -1 : 1;
-  this.parts.push({ side, y:-1.1, kind: (Math.random()<0.5) ? "BILL" : "CONE" });
-}
+        const signP = dt * (0.00038 + 0.00095*dens);
+        if (Math.random() < signP && this.parts.length < 14){
+          const side = (Math.random()<0.5) ? -1 : 1;
+          this.parts.push({ side, y:-1.1, kind: (Math.random()<0.5) ? "BILL" : "CONE" });
+        }
+      }
 
-// update opponent cars
-for (const c of this.enemies){
-  c.y += (dz*0.0016) * c.sp;
-}
-// update props
-for (const p of this.parts){
-  p.y += (dz*0.0012) * (0.95 + dens);
-}
+      // update opponent cars + props (dz tiny => near static in silence)
+      for (const c of this.enemies){ c.y += (dz*0.0016) * c.sp; }
+      for (const p of this.parts){ p.y += (dz*0.0012) * (0.95 + dens); }
 
-// scoring / cleanup
-this.enemies = this.enemies.filter(c=>{
-  if (c.y > 1.25){ this.score += 10; return false; }
-  return true;
-});
-this.parts = this.parts.filter(p=> p.y < 1.25);
+      // side planets parallax
+      for (const sp of (this.sidePlanets||[])){
+        sp.y += (dz*0.00075) * (0.9 + dens*0.6);
+        if (sp.y > 1.35){
+          sp.y = -1.35 - Math.random()*0.9;
+          sp.side = (Math.random()<0.5) ? -1 : 1;
+          sp.r = 6 + Math.random()*12;
+          sp.saturn = (Math.random()<0.24);
+        }
+      }
 
-// collision (simple boxes in normalized space)
-for (const c of this.enemies){
-  const dx = Math.abs(c.x - this.player.x);
-  const dy = Math.abs(c.y - 0.80);
-  if (dx < 0.18 && dy < 0.10){
-    
-    this.shake = Math.max(this.shake, 0.55);
-    this.msg = "CRASH!";
-    this.msgT = 650;
-    c.y += 0.20;
-    c.x += (Math.random()<0.5?-1:1)*0.12;
-  }
-}
+      // cleanup + score
+      this.enemies = this.enemies.filter(c=>{
+        if (c.y > 1.25){ this.score += 10; return false; }
+        return true;
+      });
+      this.parts = this.parts.filter(p=> p.y < 1.25);
 
-// decay
+      // collisions
+      for (const c of this.enemies){
+        const dx = Math.abs(c.x - this.player.x);
+        const dy = Math.abs(c.y - 0.80);
+        if (dx < 0.18 && dy < 0.10){
+          this.shake = Math.max(this.shake, 0.55);
+          this.msg = "CRASH!";
+          this.msgT = 650;
+          c.y += 0.20;
+          c.x += (Math.random()<0.5?-1:1)*0.12;
+        }
+      }
 
-this.shake = Math.max(0, this.shake - dt*0.0016);
-if (this.msgT > 0) this.msgT -= dt;
+      // decay
+      this.shake = Math.max(0, this.shake - dt*0.0016);
+      if (this.msgT > 0) this.msgT -= dt;
       },
 
       render(g, lx, ly, lw, lh){
 
-      // ---- retro racing render (NO halos; retro console track) ----
+      // ---- retro racing render + Milky Way background (no halos/circles) ----
       const ox = (this.shake>0)? ((Math.random()-0.5)*this.shake*3) : 0;
       const oy = (this.shake>0)? ((Math.random()-0.5)*this.shake*3) : 0;
 
       // hard black background
       g.fillStyle = "#000";
       g.fillRect(lx, ly, lw, lh);
+
+      // Milky Way background: white pixel stars with breathing haze ONLY on pixels (no circles)
+      const breathe = 0.62 + 0.38*Math.sin(now()*0.0012);
+      const stars = this.mwStars || [];
+      for (let i=0;i<stars.length;i++){
+        const s = stars[i];
+        const x = (lx + (s.x * lw) + ox)|0;
+        const y = (ly + (s.y * lh) + oy)|0;
+
+        const coreA = (s.a * (0.70 + 0.30*breathe)) * 0.90;
+        g.fillStyle = `rgba(255,255,255,${coreA})`;
+        g.fillRect(x, y, 1, 1);
+
+        if (s.halo){
+          const ha = (s.a * (0.18 + 0.35*breathe)) * 0.55;
+          g.fillStyle = `rgba(255,255,255,${ha})`;
+          g.fillRect(x-1, y, 1, 1);
+          g.fillRect(x+1, y, 1, 1);
+          g.fillRect(x, y-1, 1, 1);
+          g.fillRect(x, y+1, 1, 1);
+          const da = ha * 0.55;
+          g.fillStyle = `rgba(255,255,255,${da})`;
+          g.fillRect(x-1, y-1, 1, 1);
+          g.fillRect(x+1, y+1, 1, 1);
+        }
+      }
 
       // horizon + perspective parameters
       const horizon = (ly + lh*0.28)|0;
@@ -1707,7 +1783,7 @@ if (this.msgT > 0) this.msgT -= dt;
         }
       }
 
-      // tiny sprite helper (kept local so we don't change global helpers/UI)
+      // tiny sprite helper (local; keeps UI untouched)
       const drawSpr = (x,y,rows,scale=1,color="#cfcfcf",hi="#ffffff") => {
         for (let j=0;j<rows.length;j++){
           for (let i=0;i<rows[j].length;i++){
@@ -1717,6 +1793,48 @@ if (this.msgT > 0) this.msgT -= dt;
           }
         }
       };
+
+      // side planets (both sides of the track; grayscale; no glow)
+      const pl7 = [
+        "..***..",
+        ".#####.",
+        "#######",
+        "#######",
+        "#######",
+        ".#####.",
+        "..***..",
+      ];
+      const ring11 = [
+        "..#######..",
+        ".#########.",
+        "###########",
+        "###########",
+        ".#########.",
+        "..#######..",
+      ];
+
+      for (const sp of (this.sidePlanets||[])){
+        const t = (sp.y + 1) / 2;
+        const y = horizon + (lh*0.72)*t;
+        const persp = Math.pow((y-ly)/lh, 1.75);
+        const w = roadWTop + (roadWBot - roadWTop) * persp;
+        const cx = (lx + lw*0.5 + curvePx * Math.pow((y-ly)/lh, 2.0)) + ox;
+        const side = (sp.side<0) ? -1 : 1;
+        const sx = (cx + side*(w*0.72))|0;
+
+        const scale = Math.max(1, (1 + (persp*2))|0);
+
+        // ring behind the planet
+        if (sp.saturn && scale >= 1){
+          const rw = ring11[0].length * scale;
+          const rh = ring11.length * scale;
+          drawSpr((sx - (rw>>1))|0, ((y - (rh>>1))|0), ring11, scale, "#6f6f6f", "#d7d7d7");
+        }
+
+        const pw = pl7[0].length * scale;
+        const ph = pl7.length * scale;
+        drawSpr((sx - (pw>>1))|0, ((y - (ph>>1))|0), pl7, scale, "#bdbdbd", "#ffffff");
+      }
 
       // roadside props
       for (const s of (this.parts||[])){
@@ -1735,15 +1853,8 @@ if (this.msgT > 0) this.msgT -= dt;
         }
       }
 
-      
-// opponent cars (simple but car-shaped)
-const carOpp = [
-  ".###.",
-  "#####",
-  "#***#",
-  "#####",
-  "o###o",
-];
+      // opponent cars
+      const carOpp = [".###.","#####","#***#","#####","o###o"];
       for (const c of (this.enemies||[])){
         const t = (c.y + 1) / 2;
         const y = horizon + (lh*0.72)*t;
@@ -1753,52 +1864,49 @@ const carOpp = [
         const x = cx + c.x * (w*0.38);
 
         const scale = Math.max(1, (1 + (persp*2))|0);
-        drawSpr((x - 2*scale)|0, (y - 3*scale)|0, carOpp, scale, (c.col||"#ff5a5a"), "#fff");
+        // wheels are just darker edge pixels by color choice
+        drawSpr((x - 2*scale)|0, (y - 3*scale)|0, [".###.","#####","#***#","#####",".###."], scale, (c.col||"#ff5a5a"), "#ffffff");
       }
 
-      
-// player car (Ferrari-like retro pixel art; high detail; no logo)
-// chars: # body, * highlight, o wheels, w windshield
-const carMe = [
-  "....***.........",
-  "...#####........",
-  "..########......",
-  ".####ww####.....",
-  "###wwwwww###....",
-  "#############...",
-  "##***####***##..",
-  "##..######..##..",
-  "o#..######..#o..",
-  "o##.######.##o..",
-  ".############...",
-  "..##*******##...",
-  "...###...###....",
-];
+      // player car (Ferrari-like pixel art; no glow)
+      const carMe = [
+        "....***.........",
+        "...#####........",
+        "..########......",
+        ".####ww####.....",
+        "###wwwwww###....",
+        "#############...",
+        "##***####***##..",
+        "##..######..##..",
+        "o#..######..#o..",
+        "o##.######.##o..",
+        ".############...",
+        "..##*******##...",
+        "...###...###....",
+      ];
 
-// local sprite helper override for multi-color (only inside 8-bit panel)
-const drawSprCar = (x,y,rows,scale=1) => {
-  for (let j=0;j<rows.length;j++){
-    const row = rows[j];
-    for (let i=0;i<row.length;i++){
-      const ch = row[i];
-      if (ch === ".") continue;
-      if (ch === "#") g.fillStyle = "#ff2a2a";               // Ferrari red body
-      else if (ch === "*") g.fillStyle = "#ffffff";          // highlight
-      else if (ch === "o") g.fillStyle = "#1a1a1a";          // tires
-      else if (ch === "w") g.fillStyle = "#7bd4ff";          // windshield
-      else g.fillStyle = "#cfcfcf";
-      g.fillRect(x+i*scale, y+j*scale, scale, scale);
-    }
-  }
-};
+      const drawSprCar = (x,y,rows,scale=1) => {
+        for (let j=0;j<rows.length;j++){
+          const row = rows[j];
+          for (let i=0;i<row.length;i++){
+            const ch = row[i];
+            if (ch === ".") continue;
+            if (ch === "#") g.fillStyle = "#ff2a2a";
+            else if (ch === "*") g.fillStyle = "#ffffff";
+            else if (ch === "o") g.fillStyle = "#1a1a1a";
+            else if (ch === "w") g.fillStyle = "#7bd4ff";
+            else g.fillStyle = "#cfcfcf";
+            g.fillRect(x+i*scale, y+j*scale, scale, scale);
+          }
+        }
+      };
 
-const meY = (ly + lh*0.80)|0;
-const meCX = (lx + lw*0.5 + curvePx) + ox;
-const meX = meCX + (this.player?.x ?? 0) * (roadWBot*0.18);
+      const meY = (ly + lh*0.80)|0;
+      const meCX = (lx + lw*0.5 + curvePx) + ox;
+      const meX = meCX + (this.player?.x ?? 0) * (roadWBot*0.18);
+      drawSprCar((meX - 7)|0, (meY - 6)|0, carMe, 1);
 
-drawSprCar((meX - 7)|0, (meY - 6)|0, carMe, 1);
-
-      // HUD (minimal, same panel)
+      // HUD
       g.fillStyle = "#cfcfcf";
       g.font = "10px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
       g.fillText("RACE", lx+6, ly+12);
@@ -1809,7 +1917,6 @@ drawSprCar((meX - 7)|0, (meY - 6)|0, carMe, 1);
         g.fillStyle = "#fff";
         g.fillText(this.msg||"", (lx + lw*0.5 - (this.msg||"").length*3)|0, (ly + lh*0.18)|0);
       }
-
       }
 
     };
