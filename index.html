@@ -525,6 +525,11 @@
                 DENS
                 <input id="density" type="range" min="0" max="100" value="58" style="width:110px;">
               </label>
+              <label class="mini" style="display:flex; gap:8px; align-items:center;">
+                BPM
+                <input id="bpmBar" type="range" min="60" max="220" value="170" style="width:140px;">
+                <span id="bpmVal" style="min-width:32px; text-align:right;">170</span>
+              </label>
 
               <button id="btnRandom" class="primary">RANDOM PATTERN</button>
               <button id="btnResetGrid">RESET GRID</button>
@@ -676,10 +681,71 @@
     }
   };
 
-  // ---------- Audio ----------
+  
+  // ---------- Transport display ----------
+  function refreshTransport(){
+    const t = $("transport");
+    if (!t) return;
+    t.textContent = `bpm ${Math.round(state.bpm)} • 1 bar • 16 steps`;
+  }
+// ---------- Audio ----------
   let audioCtx = null;
   let master = null;
   let analyser = null;
+
+let glitchNode = null;
+
+  function createGlitchNode(ctx){
+    // ScriptProcessor for broad compatibility; intentionally audible (requested "glitch" effect).
+    const node = ctx.createScriptProcessor(1024, 2, 2);
+    let hold = 0;
+    let holdL = 0, holdR = 0;
+    let bits = 10;
+    let stutter = 0;
+
+    node.onaudioprocess = (e) => {
+      const in0 = e.inputBuffer.getChannelData(0);
+      const in1 = (e.inputBuffer.numberOfChannels > 1) ? e.inputBuffer.getChannelData(1) : in0;
+      const out0 = e.outputBuffer.getChannelData(0);
+      const out1 = e.outputBuffer.getChannelData(1);
+
+      for (let i=0;i<in0.length;i++){
+        let l = in0[i], r = in1[i];
+
+        // random triggers (tuned to be noticeable but not constant)
+        if (stutter <= 0 && Math.random() < 0.0012){
+          stutter = 28 + ((Math.random()*110)|0);
+        }
+        if (hold <= 0 && Math.random() < 0.004){
+          hold = 6 + ((Math.random()*60)|0);
+          bits = 5 + ((Math.random()*7)|0);
+          holdL = l; holdR = r;
+        }
+
+        if (stutter > 0){
+          // micro-stutter / freeze
+          l = holdL; r = holdR;
+          stutter--;
+        } else if (hold > 0){
+          l = holdL; r = holdR;
+          hold--;
+        }
+
+        // bit-depth crush
+        const q = 1 << bits;
+        l = Math.round(l*q)/q;
+        r = Math.round(r*q)/q;
+
+        out0[i] = l;
+        out1[i] = r;
+
+        // keep last sample for freeze
+        holdL = l; holdR = r;
+      }
+    };
+
+    return node;
+  }
 
   async function ensureAudio(){
     if (audioCtx) return;
@@ -688,7 +754,9 @@
     master.gain.value = 0.85;
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 1024;
-    master.connect(analyser);
+    glitchNode = createGlitchNode(audioCtx);
+    master.connect(glitchNode);
+    glitchNode.connect(analyser);
     analyser.connect(audioCtx.destination);
 
     $("audioState").textContent = "audio: " + audioCtx.state;
@@ -1303,6 +1371,12 @@
           scout:{hp:1, sp: 18, pts: 25, sz: 5},
           brute:{hp:3, sp: 12, pts: 60, sz: 7},
           glitch:{hp:2, sp: 14, pts: 50, sz: 6},
+          // new playful enemy types
+          zigzag:{hp:1, sp: 20, pts: 35, sz: 5},
+          drone:{hp:2, sp: 16, pts: 70, sz: 6},
+          mine:{hp:2, sp: 9, pts: 90, sz: 6},
+          meteor:{hp:1, sp: 26, pts: 40, sz: 5},
+          worm:{hp:3, sp: 11, pts: 120, sz: 7},
           boss:{hp:14, sp: 7, pts: 400, sz: 12}
         })[type] || {hp:1, sp: 16, pts: 25, sz: 5};
 
@@ -1486,13 +1560,42 @@
           const mode = (s===3||c===3) ? "spread" : "shot";
           this.fire((s===3||c===3) ? 2 : 1, mode);
           if (this.enemies.length < 8 + this.level*1.2){
-            const type = (this.level >= 6 && (s===3||c===3) && Math.random()<0.35) ? "glitch"
-                       : (this.level >= 4 && Math.random()<0.25) ? "brute"
+            const type =
+                       (this.level >= 8 && (s===3||c===3) && Math.random()<0.22) ? "worm"
+                       : (this.level >= 7 && (s===3||c===3) && Math.random()<0.28) ? "glitch"
+                       : (this.level >= 6 && Math.random()<0.22) ? "drone"
+                       : (this.level >= 5 && Math.random()<0.18) ? "zigzag"
+                       : (this.level >= 4 && Math.random()<0.20) ? "brute"
+                       : (this.level >= 3 && Math.random()<0.14) ? "mine"
                        : "scout";
             this.spawnEnemy(type);
           }
         }
-        if (p===3){
+        
+        // extra 8-bit interactions (more variety)
+        if (h===3){
+          // Meteor shower: fast obstacles + big FX
+          this.msg = "METEOR SHOWER";
+          this.msgT = 0.9;
+          this.flash = Math.min(1, this.flash + 0.55);
+          this.shake = Math.min(10, this.shake + 6);
+          for (let i=0;i<3;i++) this.spawnEnemy("meteor");
+        } else if (h===2 && Math.random() < 0.35){
+          this.spawnEnemy("zigzag");
+        }
+
+        if (b===3 && Math.random() < 0.7){
+          this.msg = "DRONE SWARM";
+          this.msgT = 0.7;
+          this.spawnEnemy("drone");
+          if (Math.random() < 0.35) this.spawnEnemy("drone");
+        }
+
+        if ((k===3 || c===3) && Math.random() < 0.35){
+          // Mines create tense lanes
+          this.spawnEnemy("mine");
+        }
+if (p===3){
           this.bomb();
         } else if (p){
           this.shake = Math.max(this.shake, 0.15 + 0.1*p);
@@ -1590,11 +1693,43 @@
           ".##...##.",
         ];
 
-        for (const e of this.enemies){
+        
+        const droneSpr = [
+          "..#..",
+          ".###.",
+          "#####",
+          ".#.#.",
+          "..#..",
+        ];
+        const mineSpr = [
+          ".###.",
+          "#####",
+          "##.##",
+          "#####",
+          ".###.",
+        ];
+        const zigSpr = [
+          "##..#",
+          ".###.",
+          "#..##",
+          ".###.",
+          "#..##",
+        ];
+        const wormSpr = [
+          "##..",
+          ".##.",
+          "..##",
+          ".##.",
+        ];
+for (const e of this.enemies){
           const x = (e.x|0), y = (e.y|0);
           let spr = alienA;
           if (e.type==="brute") spr = alienB;
           if (e.type==="glitch") spr = alienG;
+          if (e.type==="drone") spr = droneSpr;
+          if (e.type==="mine") spr = mineSpr;
+          if (e.type==="zigzag") spr = zigSpr;
+          if (e.type==="worm") spr = wormSpr;
           if (e.type==="boss") spr = boss;
           drawSpr(x, y, spr, 1);
           if (e.maxHp > 1){
@@ -1934,7 +2069,8 @@
 
     // variant changes with smoothing; no hard switch
     const tt = now()/1000;
-    const desiredVariant = (Math.floor(now()/1600) + leadIdx) % 10;
+    const GEO_VARIANTS = [0,1,2,3,4,5,6,7,8,9,20,21,22,23,24];
+    const desiredVariant = GEO_VARIANTS[(Math.floor(now()/1600) + leadIdx) % GEO_VARIANTS.length];
 
     // point count grows/shrinks smoothly with density + beat energy
     const desiredCount = clamp(Math.round(70 + density*80 + geoMorph.energy*18), 55, 160);
@@ -2497,6 +2633,25 @@
     state.viewMode = e.target.value;
     setPlayingColumn(-1);
   });
+
+  // ---------- BPM control ----------
+  refreshTransport();
+  const _bpmBar = $("bpmBar");
+  const _bpmVal = $("bpmVal");
+  if (_bpmBar){
+    _bpmBar.value = String(state.bpm);
+    if (_bpmVal) _bpmVal.textContent = String(Math.round(state.bpm));
+    _bpmBar.addEventListener("input", (e) => {
+      const v = clamp(Number(e.target.value) || state.bpm, 60, 220);
+      state.bpm = v;
+      if (_bpmVal) _bpmVal.textContent = String(Math.round(v));
+      refreshTransport();
+      // Resync next scheduling tick for immediate tempo response
+      if (state.isPlaying && audioCtx){
+        state.nextNoteTime = audioCtx.currentTime + 0.05;
+      }
+    });
+  }
 
   $("modalBackdrop").addEventListener("click", (e) => {
     if (e.target === $("modalBackdrop")) closeExportModal();
