@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-  <title>TCSEQ - v9.5 FINAL</title>
+  <title>TCSEQ - v9.6 FIXED</title>
   <style>
     /* === THEME: STRICT NOIR === */
     :root{
@@ -17,8 +17,6 @@
       /* ACCENTS */
       --deep-blue: #0033ff;    
       --deep-blue-glow: rgba(0, 51, 255, 0.6);
-      --playhead: #ffffff;
-      --playhead-glow: #00ffff;
       
       --rad: 0px; 
       
@@ -71,15 +69,12 @@
     select:hover, input:hover { border-color: #555; }
     input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
 
-    /* === REMOVE SPINNERS FROM NUMBER INPUT === */
     input[type=number]::-webkit-inner-spin-button, 
     input[type=number]::-webkit-outer-spin-button { 
       -webkit-appearance: none; 
       margin: 0; 
     }
-    input[type=number] {
-      -moz-appearance: textfield;
-    }
+    input[type=number] { -moz-appearance: textfield; }
 
     input[type=range] {
       -webkit-appearance: none; background: transparent; margin: 0; height: 16px; border: none;
@@ -92,7 +87,6 @@
     /* --- LAYOUT --- */
     .app { display: flex; flex-direction: column; height: 100%; padding: 0; }
 
-    /* Top Bar */
     .topbar {
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 16px; background: #000; border-bottom: 1px solid var(--panel-border);
@@ -116,7 +110,7 @@
 
     .main { flex: 1; display: grid; grid-template-columns: 260px 1fr; min-height: 0; overflow: hidden; position: relative; }
 
-    /* Left Sidebar - Desktop: Static / Mobile: Drawer */
+    /* Left Sidebar */
     .left-col {
       display: flex; flex-direction: column; border-right: 1px solid var(--panel-border);
       background: #050505; height: 100%; min-height: 0; overflow: hidden;
@@ -194,7 +188,6 @@
     }
     .steps-header {
       display: grid; gap: 1px; margin-bottom: 4px;
-      /* Adjusted padding/margin for visibility */
       padding-bottom: 6px; margin-bottom: 2px;
       font-family: var(--font-mono); font-size: 9px; color: #555; text-align: center;
       width: 100%; margin: 0 auto 4px auto;
@@ -220,13 +213,12 @@
       background: #b0b0b0; border-color: #e0e0e0; box-shadow: inset 0 0 4px rgba(255,255,255,0.3); 
     }
 
-    /* === HYPER PLAYHEAD (CURSOR) === */
+    /* === MODIFIED: DIMMED PLAYHEAD CURSOR === */
     .step.playing { 
-        background: var(--playhead) !important; 
-        border-color: var(--playhead) !important;
-        box-shadow: 0 0 12px var(--playhead-glow), 0 0 4px var(--playhead-glow) !important;
-        z-index: 999;
-        transform: scale(1.05);
+        background: rgba(255,255,255,0.15) !important; /* Subtle transparent white */
+        border-color: rgba(255,255,255,0.4) !important; /* Low contrast border */
+        box-shadow: none !important; /* No glow */
+        z-index: 99;
     }
 
     /* 3. VISUALS */
@@ -249,8 +241,6 @@
     /* Mobile specific elements */
     #mobileLibBtn { display: none; }
     #closeLibBtn { display: none; }
-    
-    /* Desktop Export Button in Topbar */
     #desktopExportBtn { display: block; }
 
     .toast {
@@ -260,7 +250,6 @@
       font-family: var(--font-mono); font-weight: bold;
     }
     
-    /* Modal */
     .modal-backdrop {
       background: rgba(0,0,0,0.95); backdrop-filter: blur(2px);
       position: fixed; inset: 0; display: none;
@@ -271,10 +260,7 @@
     }
     .modal h3 { color: #fff; margin-top: 0; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid #222; padding-bottom: 10px; margin-bottom: 20px; font-family: var(--font-mono);}
 
-
-    /* === MOBILE OPTIMIZATIONS === */
     @media (max-width: 900px) {
-      /* Block global scroll */
       html, body { height: 100%; overflow: hidden; position: fixed; width: 100%; }
       .app { height: 100%; position: relative; }
 
@@ -283,24 +269,15 @@
       
       #mobileLibBtn { display: block; margin-right: 8px; border-right: 1px solid #333; }
       #closeLibBtn { display: block; }
-      
-      /* Hide desktop export to save space if needed, BUT user wants them unfolded. 
-         We fit LIB, PLAY, STOP, REC, EXP, RND in topbar. */
       #desktopExportBtn { display: block; } 
 
       .cluster { gap: -1px; }
-      /* Tighter buttons on mobile */
       .cluster button { padding: 8px 10px; font-size: 10px; }
 
       .main { 
-        display: flex; 
-        flex-direction: column; 
-        height: 100%; 
-        position: relative;
-        overflow: hidden;
+        display: flex; flex-direction: column; height: 100%; position: relative; overflow: hidden;
       }
       
-      /* LEFT COLUMN: HIDDEN DRAWER */
       .left-col { 
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(10,10,10,0.98); 
@@ -311,41 +288,27 @@
       }
       .left-col.active { transform: translateX(0); }
       
-      /* RIGHT COLUMN: MAIN VIEW (Full Screen) */
       .right-col { 
-        width: 100%; height: 100%; 
-        display: flex; flex-direction: column; 
+        width: 100%; height: 100%; display: flex; flex-direction: column; 
       }
       
-      /* 1. Params: Compact & Scrollable */
       .param-bar { 
-        height: 50px; 
-        overflow-x: auto; 
-        -webkit-overflow-scrolling: touch; 
-        border-bottom: 1px solid #222;
-        flex-shrink: 0;
+        height: 50px; overflow-x: auto; -webkit-overflow-scrolling: touch; 
+        border-bottom: 1px solid #222; flex-shrink: 0;
       }
       
-      /* 2. Sequencer: Fills available space */
       .sequencer-area { 
-        flex: 1; 
-        min-height: 0; /* Allow Flexbox shrinkage */
-        display: flex; flex-direction: column;
+        flex: 1; min-height: 0; display: flex; flex-direction: column;
       }
-      .gridwrap {
-        padding: 5px; 
-        /* Center grid vertically if there is extra space */
-        justify-content: center;
-      }
-      
-      /* 3. Visuals: Fixed Small Bottom */
+      .gridwrap { padding: 5px; justify-content: center; }
+      .grid { max-width: 100%; }
+
       .vis-container { 
-        height: 140px; /* Even smaller to prioritize grid */
-        border-top: 1px solid #222;
-        flex-shrink: 0; 
+        height: 140px; border-top: 1px solid #222; flex-shrink: 0; 
       }
       
       .vis-main { border-right: none; }
+      button { padding: 6px 8px; font-size: 9px; }
     }
   </style>
 </head>
@@ -361,7 +324,6 @@
       <button id="btnStop">STOP</button>
       <button id="btnRecord">REC</button>
       <button id="btnExport" id="desktopExportBtn">EXP</button>
-      <button id="btnRandom" class="ghost">RND</button>
     </div>
   </div>
 
@@ -380,6 +342,9 @@
           <button id="btnClear" class="ghost" style="width:30px; margin-left:4px;">X</button>
         </div>
         <button id="btnAnalyzeGenerate" style="width:100%; color:#fff; border-color:#333;">AUTO-GENERATE</button>
+        <div style="display:flex; gap:4px; margin-top:4px;">
+           <button id="btnRecord" style="flex:1;">REC</button>
+        </div>
       </div>
 
       <div class="filelist" id="fileList" tabindex="0"></div>
@@ -430,6 +395,7 @@
           </div>
         </div>
         <div class="param-slot" style="flex:1; flex-direction:row; align-items:center; justify-content:flex-end; gap:8px;">
+           <button id="btnRandom" class="primary">GENERATE</button>
            <button id="btnResetGrid" class="ghost">CLR</button>
         </div>
       </div>
@@ -451,7 +417,7 @@
 
   <div class="status">
     <div id="statusLeft">SYSTEM STANDBY</div>
-    <div class="right" id="statusRight">v9.5 FINAL</div>
+    <div class="right" id="statusRight">v9.6 FIXED</div>
   </div>
 </div>
 
@@ -1039,8 +1005,7 @@
     return {
       tick(amp, active) {
         frame++;
-        // EVEN SLOWER ANIMATION
-        const speed = active ? (1 + Math.floor(amp * 5)) : 0.5; 
+        const speed = active ? (2 + Math.floor(amp * 10)) : 0.5; 
         const interval = Math.max(5, Math.floor(60 / speed));
 
         if (frame % interval === 0) {
@@ -1229,10 +1194,16 @@
     if(window.innerWidth < 900) $("leftCol").classList.remove("active");
   }
 
+  // FIXED: Add event listener for Generate button in Param bar
+  const btnRandom = $("btnRandom");
+  if(btnRandom) btnRandom.onclick = randomizePattern;
+
   $("btnClear").onclick = () => { stopTransport(); state.files=[]; renderFileList(); resetPattern(); setStatus("CLEARED"); };
   $("btnAnalyzeGenerate").onclick = analyzeAndGenerate;
   $("btnPlay").onclick = async () => { await ensureAudio(); if(audioCtx.state!=="running") await audioCtx.resume(); startTransport(); };
   $("btnStop").onclick = stopTransport;
+  
+  // Rec button on top for mobile
   $("btnRecord").onclick = async () => {
     await ensureAudio();
     if(!state.record.isRecording){
@@ -1251,17 +1222,20 @@
     }
   };
   
-  $("btnExport").onclick = () => $("modalBackdrop").style.display="flex";
+  // Export button logic
+  const openExport = () => $("modalBackdrop").style.display="flex";
   
-  const btnExpTop = $("btnExportTop"); // Mobile/Desktop Export
-  if(btnExpTop) btnExpTop.onclick = () => $("modalBackdrop").style.display="flex";
+  const btnExport = $("btnExport");
+  if(btnExport) btnExport.onclick = openExport;
+  
+  const btnExpTop = $("btnExportTop"); 
+  if(btnExpTop) btnExpTop.onclick = openExport; // if visible
 
   $("btnExportCancel").onclick = () => $("modalBackdrop").style.display="none";
   $("btnExportGo").onclick = async () => {
     $("modalBackdrop").style.display="none"; if(!state.files.length) return toast("NO AUDIO"); toast("RENDERING WAV...");
   };
 
-  $("btnRandom").onclick = randomizePattern;
   $("btnResetGrid").onclick = resetPattern;
   
   const _bpm=$("bpmBar"), _bpmV=$("bpmVal");
