@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-  <title>TCSEQ - v9.6 FIXED</title>
+  <title>TCSEQ - v9.7 FIXED</title>
   <style>
     /* === THEME: STRICT NOIR === */
     :root{
@@ -17,6 +17,8 @@
       /* ACCENTS */
       --deep-blue: #0033ff;    
       --deep-blue-glow: rgba(0, 51, 255, 0.6);
+      --playhead: #ffffff;
+      --playhead-glow: #00ffff;
       
       --rad: 0px; 
       
@@ -215,9 +217,9 @@
 
     /* === MODIFIED: DIMMED PLAYHEAD CURSOR === */
     .step.playing { 
-        background: rgba(255,255,255,0.15) !important; /* Subtle transparent white */
-        border-color: rgba(255,255,255,0.4) !important; /* Low contrast border */
-        box-shadow: none !important; /* No glow */
+        background: rgba(255,255,255,0.15) !important; 
+        border-color: rgba(255,255,255,0.4) !important;
+        box-shadow: none !important;
         z-index: 99;
     }
 
@@ -390,7 +392,7 @@
         <div class="param-slot">
           <span class="param-label">BPM</span>
           <div style="display:flex; align-items:center; gap:4px;">
-            <input id="bpmBar" type="range" min="60" max="220" value="135" style="width:60px;">
+            <input id="bpmBar" type="range" min="60" max="220" value="135">
             <span id="bpmVal" style="font-family:var(--font-mono); color:#fff; font-size:9px;">135</span>
           </div>
         </div>
@@ -417,7 +419,7 @@
 
   <div class="status">
     <div id="statusLeft">SYSTEM STANDBY</div>
-    <div class="right" id="statusRight">v9.6 FIXED</div>
+    <div class="right" id="statusRight">v9.7 FIXED</div>
   </div>
 </div>
 
