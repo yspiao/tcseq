@@ -294,9 +294,45 @@
         width: 100%; height: 100%; display: flex; flex-direction: column; 
       }
       
+      /* 修改：参数栏在移动端改为两行显示 */
       .param-bar { 
-        height: 50px; overflow-x: auto; -webkit-overflow-scrolling: touch; 
-        border-bottom: 1px solid #222; flex-shrink: 0;
+        height: auto; /* 改为自适应高度 */
+        min-height: 50px; /* 保持最小高度 */
+        overflow-x: visible; /* 不需要横向滚动 */
+        border-bottom: 1px solid #222; 
+        flex-shrink: 0;
+        flex-wrap: wrap; /* 允许换行 */
+        align-content: flex-start; /* 顶部对齐 */
+      }
+      
+      /* 修改：每个参数槽在移动端的宽度 */
+      .param-slot {
+        flex: 1 0 33.33%; /* 每行显示3个 */
+        min-width: 0; /* 移除最小宽度限制 */
+        padding: 8px 4px; /* 减小内边距 */
+        border-right: 1px solid #222;
+        border-bottom: 1px solid #222; /* 添加底部边框 */
+        box-sizing: border-box;
+      }
+      
+      /* 每行的第三个元素去掉右边框 */
+      .param-slot:nth-child(3n) {
+        border-right: none;
+      }
+      
+      /* 最后一行元素去掉底部边框 */
+      .param-slot:nth-last-child(-n+3) {
+        border-bottom: none;
+      }
+      
+      /* 确保生成和重置按钮在一行显示 */
+      .param-slot:last-child {
+        flex: 1 0 66.66%; /* 占据两个位置 */
+        border-right: none;
+        border-bottom: none;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 8px;
       }
       
       .sequencer-area { 
