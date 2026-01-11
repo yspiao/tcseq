@@ -454,6 +454,12 @@
     clearTimeout(toast._tm); toast._tm = setTimeout(()=>{ t.style.display="none"; }, ms);
   };
 
+  // 添加移动设备检测函数
+  const isMobile = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+           (window.innerWidth <= 900);
+  };
+
   const __glitchParams = { style: "stutter", amt: 0.0 };
   const __glitchStyleEl = $("glitchStyle");
   const __glitchAmtEl = $("glitchAmt");
@@ -971,7 +977,6 @@
       const j=0.06*Math.sin(i*17.13+tt*1.7) + 0.15*e*Math.sin(i*7.77+tt*20.0); 
       pts[i]={x:p[0]+j, y:p[1]-j*0.7, z:p[2]+j*0.5, a:1};
     }
-    return pts;
   }
 
   function onStep(step){
@@ -1167,12 +1172,31 @@
   const closeBtn = $("closeLibBtn");
   if(closeBtn) closeBtn.onclick = () => { $("leftCol").classList.remove("active"); };
 
-  $("btnLoadFile").onclick = () => $("fileInputFile").click();
-  $("btnLoadFolder").onclick = () => $("fileInputFolder").click();
+  // 修改：移动设备文件选择优化
+  function handleFileSelect(e){
+    addFiles(Array.from(e.target.files||[])); 
+    e.target.value="";
+  }
 
-  function handleFileSelect(e){ addFiles(Array.from(e.target.files||[])); e.target.value=""; }
   $("fileInputFile").addEventListener("change", handleFileSelect);
   $("fileInputFolder").addEventListener("change", handleFileSelect);
+
+  $("btnLoadFile").onclick = () => $("fileInputFile").click();
+  
+  // 修改：移动设备上，将文件夹按钮转换为文件选择
+  $("btnLoadFolder").onclick = () => {
+    if (isMobile()) {
+      // 在移动设备上，使用常规文件选择
+      $("fileInputFile").click();
+      // 显示提示信息
+      setTimeout(() => {
+        toast("提示: 在手机上请逐个选择音频文件", 3000);
+      }, 300);
+    } else {
+      // 在桌面设备上，使用文件夹选择
+      $("fileInputFolder").click();
+    }
+  };
 
   function addFiles(files){
     const audioFiles = files.filter(f => f.type.startsWith('audio/') || f.name.endsWith('.wav') || f.name.endsWith('.mp3') || f.name.endsWith('.aif'));
