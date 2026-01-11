@@ -294,27 +294,27 @@
         width: 100%; height: 100%; display: flex; flex-direction: column; 
       }
       
-      /* 修改：参数栏在移动端改为三行紧凑布局 */
+      /* 参数栏在移动端改为三行紧凑布局 */
       .param-bar { 
-        height: auto; /* 改为自适应高度 */
-        min-height: 40px; /* 减小最小高度 */
-        overflow-x: visible; /* 不需要横向滚动 */
+        height: auto;
+        min-height: 40px;
+        overflow-x: visible;
         border-bottom: 1px solid #222; 
         flex-shrink: 0;
-        flex-wrap: wrap; /* 允许换行 */
-        align-content: flex-start; /* 顶部对齐 */
-        padding: 4px 0; /* 添加内边距 */
+        flex-wrap: wrap;
+        align-content: flex-start;
+        padding: 4px 0;
       }
       
-      /* 修改：每个参数槽在移动端的宽度 - 调整为每行3个 */
+      /* 每个参数槽在移动端的宽度 - 调整为每行3个 */
       .param-slot {
-        flex: 1 0 33.33%; /* 每行显示3个 */
-        min-width: 0; /* 移除最小宽度限制 */
-        padding: 4px 2px; /* 减小内边距 */
+        flex: 1 0 33.33%;
+        min-width: 0;
+        padding: 4px 2px;
         border-right: 1px solid #222;
-        border-bottom: 1px solid #222; /* 添加底部边框 */
+        border-bottom: 1px solid #222;
         box-sizing: border-box;
-        min-height: 35px; /* 设置最小高度 */
+        min-height: 35px;
       }
       
       /* 每行的第三个元素去掉右边框 */
@@ -322,14 +322,14 @@
         border-right: none;
       }
       
-      /* 前6个参数槽（STEPS, ALGO, DENS, FX, AMT, BPM）去掉底部边框 */
+      /* 前6个参数槽去掉底部边框 */
       .param-slot:nth-child(-n+6) {
         border-bottom: 1px solid #222;
       }
       
-      /* 第7个参数槽（包含GENERATE和CLR）特殊处理 */
+      /* 第7个参数槽特殊处理 */
       .param-slot:last-child {
-        flex: 1 0 100%; /* 占据整行 */
+        flex: 1 0 100%;
         border-right: none;
         border-bottom: none;
         flex-direction: row;
@@ -341,18 +341,19 @@
         padding: 4px 8px;
       }
       
-      /* 修改序列器区域，使其更紧凑 */
+      /* 修改序列器区域，使其更紧凑并上移 */
       .sequencer-area { 
-        flex: 1.2; /* 增加flex比例，使其占据更多空间 */
+        flex: 0.9; /* 从1.2改为0.9，减少比例，让序列器更紧凑 */
         min-height: 0; 
         display: flex; 
         flex-direction: column;
-        margin-top: -5px; /* 向上移动一些 */
+        margin-top: -5px;
       }
       
       .gridwrap { 
-        padding: 8px 5px 5px 5px; /* 减小内边距 */
+        padding: 5px 5px 3px 5px; /* 进一步减小内边距 */
         justify-content: center; 
+        flex: 1; /* 添加flex属性使其填充可用空间 */
       }
       
       .grid { 
@@ -362,24 +363,54 @@
       /* 修改步骤标题样式 */
       .steps-header {
         margin-bottom: 2px;
-        padding-bottom: 4px;
+        padding-bottom: 3px;
+        font-size: 8px; /* 稍微减小字体 */
       }
       
       /* 修改行标签样式 */
       .rlabel {
-        font-size: 9px;
-        padding-right: 6px;
+        font-size: 8px; /* 减小字体 */
+        padding-right: 4px; /* 减小右边距 */
+        line-height: 1; /* 减小行高 */
       }
       
-      /* 修改视觉区域高度 */
+      /* 修改步骤单元格，使其更紧凑 */
+      .step {
+        min-height: 20px; /* 确保最小高度 */
+      }
+      
+      /* 修改视觉区域高度 - 增加高度 */
       .vis-container { 
-        height: 160px; /* 稍微增加高度 */
+        flex: 1.8; /* 从固定高度改为flex比例，增加比例 */
+        min-height: 200px; /* 设置最小高度 */
         border-top: 1px solid #222; 
         flex-shrink: 0; 
       }
       
-      .vis-main { border-right: none; }
-      button { padding: 6px 8px; font-size: 9px; }
+      /* 确保视觉区域内部canvas填满 */
+      .vis-main { 
+        width: 100%; 
+        height: 100%; 
+        border-right: none; 
+      }
+      
+      canvas { 
+        width: 100%; 
+        height: 100%; 
+        display: block; 
+      }
+      
+      button { 
+        padding: 6px 8px; 
+        font-size: 9px; 
+      }
+      
+      /* 状态栏调整 */
+      .status {
+        height: 24px;
+        padding: 0 8px;
+        font-size: 8px;
+      }
     }
   </style>
 </head>
@@ -1337,7 +1368,12 @@
   
   const _bpm=$("bpmBar"), _bpmV=$("bpmVal");
   _bpm.addEventListener("input", e=>{
-    state.bpm = clamp(Number(e.target.value), 60, 220); _bpmV.textContent = Math.round(state.bpm); refreshTransport();
+    state.bpm = clamp(Number(e.target.value), 60, 220); _bpmV.textContent = Math.round(state.bpm);
+    // 重新计算节拍相关的时间
+    if (state.isPlaying) {
+      stopTransport();
+      startTransport();
+    }
   });
   
   const _meter = $("meterMode");
